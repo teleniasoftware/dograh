@@ -173,6 +173,13 @@ services:
       TURN_SECRET: "${TURN_SECRET:-}"
       FORCE_TURN_RELAY: "${FORCE_TURN_RELAY:-false}"
 
+      # Native SIP ingress. Dial sip:<agent_uuid>@<host>:5090.
+      SIP_ENABLED: "${SIP_ENABLED:-false}"
+      SIP_HOST: "0.0.0.0"
+      SIP_PORT: "${SIP_PORT:-5090}"
+      SIP_RTP_START_PORT: "${SIP_RTP_START_PORT:-10000}"
+      SIP_RTP_END_PORT: "${SIP_RTP_END_PORT:-10400}"
+
       OSS_JWT_SECRET: "${OSS_JWT_SECRET:-ChangeMeInProduction}"
 
       # Telemetry
@@ -182,6 +189,8 @@ services:
 
     ports:
       - "8000:8000"
+      - "${SIP_PORT:-5090}:${SIP_PORT:-5090}/udp"
+      - "${SIP_RTP_START_PORT:-10000}-${SIP_RTP_END_PORT:-10400}:${SIP_RTP_START_PORT:-10000}-${SIP_RTP_END_PORT:-10400}/udp"
     depends_on:
       postgres:
         condition: service_healthy

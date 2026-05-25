@@ -96,6 +96,8 @@ def create_audio_config(transport_type: str) -> AudioConfig:
     telephony_spec = registry.get_optional(transport_type)
     if telephony_spec is not None:
         rate = telephony_spec.transport_sample_rate
+    elif transport_type == WorkflowRunMode.SIP.value:
+        rate = 8000
     elif transport_type in (
         WorkflowRunMode.WEBRTC.value,
         WorkflowRunMode.SMALLWEBRTC.value,

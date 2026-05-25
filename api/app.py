@@ -26,7 +26,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
-from api.constants import REDIS_URL
+from api.constants import REDIS_URL, SIP_ENABLED
 from api.mcp_server import mcp
 from api.routes.main import router as main_router
 from api.services.pipecat.tracing_config import (
@@ -63,10 +63,19 @@ async def lifespan(app: FastAPI):
         await sync_manager.start()
         set_worker_sync_manager(sync_manager)
 
+        sip_manager = None
+        if SIP_ENABLED:
+            from api.services.sip.manager import build_sip_ingress_manager_from_env
+
+            sip_manager = build_sip_ingress_manager_from_env()
+            await sip_manager.start()
+
         yield  # Run app
 
         # Shutdown sequence - this runs when FastAPI is shutting down
         logger.info("Starting graceful shutdown...")
+        if sip_manager:
+            await sip_manager.stop()
         await sync_manager.stop()
 
 

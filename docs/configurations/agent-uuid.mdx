@@ -30,6 +30,7 @@ Use the Agent UUID for workflow-level routes such as:
 - `POST /api/v1/public/agent/workflow/{workflow_uuid}`
 - `POST /api/v1/public/agent/test/workflow/{workflow_uuid}`
 - `wss://<your-host>/api/v1/agent-stream/{agent_uuid}`
+- `sip:<agent_uuid>@<your-host>:5090` when native SIP ingress is enabled
 
 <Note>
 Do not confuse the Agent UUID with an API Trigger node UUID (`trigger_path`).

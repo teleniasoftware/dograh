@@ -73,7 +73,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
         <div className="flex min-h-screen w-full">
           <AppSidebar />
           <SidebarInset className="flex-1">
-            {!isWorkflowEditor && <AppHeader />}
+            {/*{!isWorkflowEditor && <AppHeader />}*/}
             {/* Optional header area for specific pages */}
             {headerActions && (
               <header className="sticky top-0 z-50 w-full border-b bg-background">

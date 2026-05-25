@@ -15,7 +15,7 @@ export default function OverviewPage() {
         <div className="container mx-auto px-4 py-8">
             <div className="max-w-4xl mx-auto">
                 {/* Welcome Card */}
-                <Card className="mb-8">
+                {/*<Card className="mb-8">
                     <CardHeader>
                         <CardTitle className="text-3xl">
                             {isOSSMode ? (
@@ -41,7 +41,7 @@ export default function OverviewPage() {
                             </div>
                         )}
                     </CardContent>
-                </Card>
+                </Card>*/}
 
                 {/* Quick Actions */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

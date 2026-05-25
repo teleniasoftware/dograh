@@ -264,7 +264,7 @@ export function AppSidebar() {
               className="notranslate flex items-center gap-2 px-2 text-xl font-bold"
               translate="no"
             >
-              Dograh
+              TVox Flexi
               {versionInfo && (
                 <span
                   className="notranslate text-xs font-normal text-muted-foreground"
@@ -274,7 +274,7 @@ export function AppSidebar() {
                 </span>
               )}
             </Link>
-            {isBehind && latestRelease && (
+            {/*{isBehind && latestRelease && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <a
@@ -303,7 +303,7 @@ export function AppSidebar() {
                   <p>You&apos;re running the latest release</p>
                 </TooltipContent>
               </Tooltip>
-            )}
+            )}*/}
           </div>
 
           <SidebarTrigger className={cn("hover:bg-accent", isCollapsed && "mx-auto")}>

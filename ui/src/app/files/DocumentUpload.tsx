@@ -39,9 +39,8 @@ export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps)
       <div className="text-xs text-amber-900 dark:text-amber-200">
         <p className="font-medium">Processed by an external service</p>
         <p className="mt-1">
-          Uploaded documents are sent to Dograh&apos;s managed Model Proxy Service for
-          parsing and chunking. Dograh Model Proxy Service does not store or read your documents -
-          the extracted text and embeddings are returned and stored locally in your
+          Uploaded documents are sent to a document processing service for
+          parsing and chunking. The extracted text and embeddings are returned and stored locally in your
           self-hosted database.
         </p>
       </div>

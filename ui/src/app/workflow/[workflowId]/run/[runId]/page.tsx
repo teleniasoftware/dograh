@@ -26,7 +26,6 @@ interface WorkflowRunResponse {
     transcript_url: string | null;
     recording_url: string | null;
     cost_info: {
-        dograh_token_usage?: number | null;
         call_duration_seconds?: number | null;
     } | null;
     initial_context: Record<string, string | number | boolean | object> | null;
@@ -89,10 +88,6 @@ function RunMetricsSection({
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <MetricCard label="Duration" value={formatDuration(costInfo?.call_duration_seconds)} />
-                <MetricCard
-                    label="Token Usage"
-                    value={costInfo?.dograh_token_usage != null ? costInfo.dograh_token_usage.toLocaleString() : 'N/A'}
-                />
                 <MetricCard label="User Turns" value={String(metrics.userTurns)} />
                 <MetricCard label="Bot Turns" value={String(metrics.botTurns)} />
                 <MetricCard label="Tool Calls" value={String(metrics.toolCalls)} />

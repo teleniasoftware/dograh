@@ -26,7 +26,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
-from api.constants import REDIS_URL, SIP_ENABLED
+from api.constants import REDIS_URL
 from api.mcp_server import mcp
 from api.routes.main import router as main_router
 from api.services.pipecat.tracing_config import (
@@ -64,11 +64,14 @@ async def lifespan(app: FastAPI):
         set_worker_sync_manager(sync_manager)
 
         sip_manager = None
-        if SIP_ENABLED:
-            from api.services.sip.manager import build_sip_ingress_manager_from_env
+        try:
+            from api.services.sip.manager import build_sip_ingress_manager
 
-            sip_manager = build_sip_ingress_manager_from_env()
-            await sip_manager.start()
+            sip_manager = await build_sip_ingress_manager()
+            if sip_manager:
+                await sip_manager.start()
+        except Exception as e:
+            logger.warning("Failed to start SIP ingress: {}", e)
 
         yield  # Run app
 

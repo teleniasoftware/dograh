@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from loguru import logger
 from pipecat.utils.run_context import set_current_org_id, set_current_run_id
@@ -303,13 +302,57 @@ class SIPIngressManager:
                 pass
 
 
-def build_sip_ingress_manager_from_env() -> SIPIngressManager:
+async def build_sip_ingress_manager() -> Optional[SIPIngressManager]:
+    """Build a SIPIngressManager from TVox telephony configs or env-var fallbacks.
+
+    Reads host/port/RTP-range from environment variables (server infrastructure).
+    Auth credentials are resolved from the first org's TVox telephony configuration,
+    falling back to the ``SIP_AUTH_USERNAME`` / ``SIP_AUTH_PASSWORD`` env vars.
+
+    Returns ``None`` when ``SIP_PORT`` is not set and no TVox config exists.
+    """
+    import os
+
+    host = os.getenv("SIP_HOST", "0.0.0.0")
+    port_str = os.getenv("SIP_PORT", "")
+    rtp_start = int(os.getenv("SIP_RTP_START_PORT", "10000"))
+    rtp_end = int(os.getenv("SIP_RTP_END_PORT", "10400"))
+    max_calls = int(os.getenv("SIP_MAX_CONCURRENT_CALLS", "100"))
+
+    port = int(port_str) if port_str else 0
+
+    # Try to load auth from the first TVox (sip provider) config across all orgs
+    auth_username = os.getenv("SIP_AUTH_USERNAME", "")
+    auth_password = os.getenv("SIP_AUTH_PASSWORD", "")
+
+    try:
+        tvox_config = await db_client.get_first_tvox_config()
+        if tvox_config:
+            creds: Dict[str, Any] = tvox_config.get("credentials", {}) or {}
+            if creds.get("auth_username"):
+                auth_username = str(creds["auth_username"])
+            if creds.get("auth_password"):
+                auth_password = str(creds["auth_password"])
+            if not port and creds.get("port"):
+                port = int(creds["port"])
+            logger.info(
+                "SIP ingress loaded auth from TVox telephony config "
+                "(organization_id={})",
+                tvox_config.get("organization_id"),
+            )
+    except Exception as e:
+        logger.warning("Could not load TVox config for SIP auth: {}", e)
+
+    if not port:
+        logger.debug("SIP_PORT not configured; SIP ingress will not start")
+        return None
+
     return SIPIngressManager(
-        host=os.getenv("SIP_HOST", "0.0.0.0"),
-        port=int(os.getenv("SIP_PORT", "5090")),
-        rtp_start_port=int(os.getenv("SIP_RTP_START_PORT", "10000")),
-        rtp_end_port=int(os.getenv("SIP_RTP_END_PORT", "10400")),
-        max_concurrent_calls=int(os.getenv("SIP_MAX_CONCURRENT_CALLS", "100")),
-        auth_username=os.getenv("SIP_AUTH_USERNAME", ""),
-        auth_password=os.getenv("SIP_AUTH_PASSWORD", ""),
+        host=host,
+        port=port,
+        rtp_start_port=rtp_start,
+        rtp_end_port=rtp_end,
+        max_concurrent_calls=max_calls,
+        auth_username=auth_username,
+        auth_password=auth_password,
     )

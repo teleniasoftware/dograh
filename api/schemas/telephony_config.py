@@ -24,6 +24,11 @@ from api.services.telephony.providers.plivo.config import (
     PlivoConfigurationRequest,
     PlivoConfigurationResponse,
 )
+from api.services.telephony.providers.sip.config import (
+    SIPConfigurationRequest,
+    SIPConfigurationResponse,
+)
+
 from api.services.telephony.providers.telnyx.config import (
     TelnyxConfigurationRequest,
     TelnyxConfigurationResponse,
@@ -41,14 +46,12 @@ from api.services.telephony.providers.vonage.config import (
     VonageConfigurationResponse,
 )
 
-# Discriminated union for incoming save requests. Pydantic dispatches on the
-# ``provider`` Literal field of each request class. Replaces the manual
-# if/elif chains that used to live in routes/organization.py.
 TelephonyConfigRequest = Annotated[
     Union[
         ARIConfigurationRequest,
         CloudonixConfigurationRequest,
         PlivoConfigurationRequest,
+        SIPConfigurationRequest,
         TelnyxConfigurationRequest,
         TwilioConfigurationRequest,
         VobizConfigurationRequest,
@@ -73,6 +76,7 @@ class TelephonyConfigurationResponse(BaseModel):
     cloudonix: Optional[CloudonixConfigurationResponse] = None
     ari: Optional[ARIConfigurationResponse] = None
     telnyx: Optional[TelnyxConfigurationResponse] = None
+    sip: Optional[SIPConfigurationResponse] = None
 
 
 # ---------------------------------------------------------------------------
@@ -138,6 +142,8 @@ __all__ = [
     "CloudonixConfigurationResponse",
     "PlivoConfigurationRequest",
     "PlivoConfigurationResponse",
+    "SIPConfigurationRequest",
+    "SIPConfigurationResponse",
     "TelephonyConfigRequest",
     "TelephonyConfigurationResponse",
     "TelnyxConfigurationRequest",

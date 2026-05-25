@@ -103,6 +103,25 @@ class TelephonyConfigurationClient(BaseDBClient):
             )
             return int(result.scalar() or 0)
 
+    async def get_first_tvox_config(self) -> Optional[Dict[str, Any]]:
+        """Return the first TVox (provider='sip') config's credentials and org id.
+
+        Used by the SIP ingress manager to resolve auth credentials at startup.
+        Returns a dict with ``organization_id`` and ``credentials``, or None.
+        """
+        async with self.async_session() as session:
+            result = await session.execute(
+                select(TelephonyConfigurationModel).where(
+                    TelephonyConfigurationModel.provider == "sip",
+                ).limit(1)
+            )
+            row = result.scalars().first()
+            if row is None:
+                return None
+            return {
+                "organization_id": row.organization_id,
+                "credentials": row.credentials,
+            }
     async def list_all_telephony_configurations_by_provider(
         self, provider: str
     ) -> List[TelephonyConfigurationModel]:

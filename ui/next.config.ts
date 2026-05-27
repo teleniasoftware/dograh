@@ -1,14 +1,9 @@
-import { fileURLToPath } from "node:url";
-
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
-
-const outputFileTracingRoot = fileURLToPath(new URL("../", import.meta.url));
 
 const nextConfig: NextConfig = {
   /* config options here */
   output: 'standalone',
-  outputFileTracingRoot,
   experimental: {
     serverSourceMaps: true,
   },

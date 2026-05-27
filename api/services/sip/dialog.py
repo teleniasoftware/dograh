@@ -95,6 +95,10 @@ class SIPDialog:
         self._rtp_local_port: int = 0
         self._call_info: Optional[SIPCallInfo] = None
 
+        # Session timer (RFC 4028)
+        self._se_value: int = 0
+        self._se_refresher: str = "uac"
+
         # 200 OK retransmission
         self._200ok_bytes: Optional[bytes] = None
         self._retransmit_task: Optional[asyncio.Task] = None
@@ -215,13 +219,52 @@ class SIPDialog:
 
     async def _on_invite(self, msg, addr: tuple) -> None:
         if self.state not in (DialogState.IDLE, DialogState.RINGING):
-            # Re-INVITE not supported
+            # Re-INVITE in ESTABLISHED: session timer refresh (RFC 4028).
+            # Accept as a no-op — same SDP, same codec, same RTP session.
+            if self.state == DialogState.ESTABLISHED and self._se_value:
+                logger.info(
+                    f"[{self.call_id}] re-INVITE (session refresh) accepted"
+                )
+                resp_200 = build_response(
+                    msg,
+                    200,
+                    local_tag=self._local_tag,
+                    extra={
+                        "Contact": f"<sip:voicebot@{self._local_ip}:{self._local_sip_port}>",
+                        "Session-Expires": f"{self._se_value};refresher={self._se_refresher}",
+                        "Require": "timer",
+                    },
+                )
+                await self._send(resp_200, addr)
+                return
+            # Other re-INVITEs (codec changes, hold, etc.) are not supported.
             resp = build_response(msg, 488, local_tag=self._local_tag)
             await self._send(resp, addr)
             return
 
         self._invite = msg
         self._remote_addr = addr
+
+        # Session timer support (RFC 4028).
+        # When the caller requests session timers with a short interval
+        # (e.g. 20 s), we negotiate a longer interval so the call isn't
+        # torn down prematurely.  Re-INVITEs for session refresh are
+        # accepted as no-op keepalives.
+        session_expires = msg.get("session-expires", "")
+        min_se = msg.get("min-se", "")
+        _se_value = 3600  # 1 hour default
+        if session_expires:
+            try:
+                _se_value = max(int(session_expires.split(";")[0].strip()), 90)
+            except (ValueError, IndexError):
+                pass
+        if min_se:
+            try:
+                _se_value = max(_se_value, int(min_se.strip()))
+            except ValueError:
+                pass
+        self._se_value = _se_value
+        self._se_refresher = "uac"
 
         from_hdr = getattr(msg, "from_header", "") or ""
         to_hdr = getattr(msg, "to_header", "") or ""
@@ -314,14 +357,22 @@ class SIPDialog:
         )
 
         # 200 OK with SDP
+        _200ok_extra = {
+            "Contact": f"<sip:voicebot@{self._local_ip}:{self._local_sip_port}>",
+        }
+        # Advertise session timer support so the caller doesn't tear down
+        # the call due to a short Session-Expires in the initial INVITE.
+        if session_expires:
+            _200ok_extra["Session-Expires"] = (
+                f"{self._se_value};refresher={self._se_refresher}"
+            )
+            _200ok_extra["Require"] = "timer"
         self._200ok_bytes = build_response(
             msg,
             200,
             local_tag=self._local_tag,
             body=local_sdp,
-            extra={
-                "Contact": f"<sip:voicebot@{self._local_ip}:{self._local_sip_port}>"
-            },
+            extra=_200ok_extra,
         )
         await self._send(self._200ok_bytes, addr)
         logger.info(

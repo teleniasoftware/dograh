@@ -41,6 +41,7 @@ from api.services.workflow.trigger_paths import (
     validate_trigger_paths,
 )
 from api.services.workflow.workflow_graph import WorkflowGraph
+from api.utils.artifacts import artifact_url
 
 router = APIRouter(prefix="/workflow")
 
@@ -1113,6 +1114,11 @@ async def get_workflow_run(
     )
     if not run:
         raise HTTPException(status_code=404, detail="Workflow run not found")
+
+    public_access_token = run.public_access_token
+    if (run.transcript_url or run.recording_url) and not public_access_token:
+        public_access_token = await db_client.ensure_public_access_token(run.id)
+
     return {
         "id": run.id,
         "workflow_id": run.workflow_id,
@@ -1121,6 +1127,9 @@ async def get_workflow_run(
         "is_completed": run.is_completed,
         "transcript_url": run.transcript_url,
         "recording_url": run.recording_url,
+        "transcript_public_url": artifact_url(public_access_token, "transcript"),
+        "recording_public_url": artifact_url(public_access_token, "recording"),
+        "public_access_token": public_access_token,
         "cost_info": {
             "dograh_token_usage": (
                 run.cost_info.get("dograh_token_usage")

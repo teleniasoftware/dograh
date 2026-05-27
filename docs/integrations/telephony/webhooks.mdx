@@ -83,16 +83,13 @@ Dograh AI automatically:
 
 ## Local Development
 
-For local development, use the built-in Cloudflare tunnel:
+For local development, your telephony provider still needs a publicly reachable webhook URL. Dograh can use `BACKEND_API_ENDPOINT` directly, or fall back to a `cloudflared` tunnel if you run one yourself.
 
-```yaml
-# docker-compose.yml includes:
-cloudflared:
-  image: cloudflare/cloudflared:latest
-  command: tunnel --no-autoupdate --url http://api:8000
+```bash
+BACKEND_API_ENDPOINT=https://your-public-domain.example.com
 ```
 
-The tunnel URL is automatically detected and used for webhooks.
+If you prefer a temporary tunnel in local development, start it separately and point it at `http://localhost:8000`. The tunnel URL is automatically detected and used for webhooks when `BACKEND_API_ENDPOINT` is unset or still points to `localhost`.
 
 ## Troubleshooting
 

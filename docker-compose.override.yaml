@@ -6,8 +6,12 @@ services:
     build:
       context: .
       dockerfile: api/Dockerfile
+    environment:
+      ENABLE_TELEMETRY: "${ENABLE_TELEMETRY:-false}"
 
   ui:
     build:
       context: .
       dockerfile: ui/Dockerfile
+    environment:
+      ENABLE_TELEMETRY: "${ENABLE_TELEMETRY:-false}"

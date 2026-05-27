@@ -2,6 +2,7 @@
 
 import asyncio
 import re
+import socket
 from typing import Optional
 
 import aiohttp
@@ -29,7 +30,14 @@ class TunnelURLProvider:
             if urls:
                 return urls
         except Exception as e:
-            logger.warning(f"Failed to get tunnel URL from cloudflared: {e}")
+            if isinstance(e, aiohttp.ClientError) and cls._is_missing_cloudflared_host_error(
+                e
+            ):
+                logger.debug(
+                    "Skipping cloudflared tunnel lookup because host 'cloudflared' is not resolvable"
+                )
+            else:
+                logger.warning(f"Failed to get tunnel URL from cloudflared: {e}")
 
         raise ValueError(
             "No tunnel URL available. Please set BACKEND_API_ENDPOINT environment "
@@ -88,8 +96,22 @@ class TunnelURLProvider:
             logger.warning("Timeout connecting to cloudflared metrics endpoint")
             return None
         except aiohttp.ClientError as e:
+            if cls._is_missing_cloudflared_host_error(e):
+                logger.debug(
+                    "Skipping cloudflared tunnel lookup because host 'cloudflared' is not resolvable"
+                )
+                return None
             logger.warning(f"Error connecting to cloudflared: {e}")
             return None
         except Exception as e:
             logger.error(f"Unexpected error getting cloudflared URL: {e}")
             return None
+
+    @staticmethod
+    def _is_missing_cloudflared_host_error(error: aiohttp.ClientError) -> bool:
+        """Return True when cloudflared DNS lookup fails because the service is absent."""
+        if not isinstance(error, aiohttp.ClientConnectorError):
+            return False
+
+        os_error = error.os_error
+        return isinstance(os_error, socket.gaierror)

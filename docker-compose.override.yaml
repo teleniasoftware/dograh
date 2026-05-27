@@ -1,0 +1,13 @@
+# Build from local source instead of pulling from registry.
+# Remove this file to go back to pre-built images.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+
+  ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile

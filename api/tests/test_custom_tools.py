@@ -1019,6 +1019,115 @@ class TestCustomToolManagerUnit:
             # Verify result was returned
             assert result_received["status"] == "success"
 
+    @pytest.mark.asyncio
+    async def test_tvox_callback_handler_ends_call_only_on_success(self):
+        """TVox callback handler should suppress the LLM only when ending the call."""
+        from api.services.workflow.pipecat_engine_custom_tools import CustomToolManager
+
+        mock_engine = Mock()
+        mock_engine._workflow_run_id = 123
+        mock_engine._call_context_vars = {"sip_call_id": "sip-call-id"}
+        mock_engine._gathered_context = {}
+        mock_engine._get_organization_id = AsyncMock(return_value=1)
+        mock_engine.end_call_with_reason = AsyncMock()
+
+        manager = CustomToolManager(mock_engine)
+        tool = MockToolModel(
+            tool_uuid="tvox-uuid",
+            name="TVox Callback",
+            description="Return data to TVox",
+            category="tvox_callback",
+            definition={
+                "schema_version": 1,
+                "type": "tvox_callback",
+                "config": {"timeout_ms": 10000, "parameters": []},
+            },
+        )
+        handler, timeout_secs = manager._create_handler(tool, "tvox_callback")
+
+        assert timeout_secs == pytest.approx(10)
+
+        callback_results = []
+
+        async def result_callback(result, properties=None):
+            callback_results.append((result, properties))
+
+        params = Mock()
+        params.arguments = {"outcome": "ok"}
+        params.result_callback = result_callback
+
+        with patch(
+            "api.services.workflow.pipecat_engine_custom_tools.execute_tvox_callback_tool",
+            new_callable=AsyncMock,
+            return_value={"status": "success", "status_code": 200, "end_call": True},
+        ) as mock_execute:
+            await handler(params)
+
+        mock_execute.assert_awaited_once()
+        mock_engine.end_call_with_reason.assert_awaited_once()
+        assert callback_results[0][0]["status"] == "success"
+        assert callback_results[0][1] is not None
+        assert mock_engine._gathered_context["tvox_callback_logs"] == [
+            {
+                "tool_uuid": "tvox-uuid",
+                "tool_name": "TVox Callback",
+                "status": "success",
+                "status_code": 200,
+                "error": None,
+            }
+        ]
+
+    @pytest.mark.asyncio
+    async def test_tvox_callback_handler_returns_error_to_llm_without_ending(self):
+        """Failed callbacks should return to the LLM and keep the call open."""
+        from api.services.workflow.pipecat_engine_custom_tools import CustomToolManager
+
+        mock_engine = Mock()
+        mock_engine._workflow_run_id = 123
+        mock_engine._call_context_vars = {}
+        mock_engine._gathered_context = {}
+        mock_engine._get_organization_id = AsyncMock(return_value=1)
+        mock_engine.end_call_with_reason = AsyncMock()
+
+        manager = CustomToolManager(mock_engine)
+        tool = MockToolModel(
+            tool_uuid="tvox-uuid",
+            name="TVox Callback",
+            description="Return data to TVox",
+            category="tvox_callback",
+            definition={
+                "schema_version": 1,
+                "type": "tvox_callback",
+                "config": {"timeout_ms": 10000, "parameters": []},
+            },
+        )
+        handler, _ = manager._create_handler(tool, "tvox_callback")
+
+        callback_results = []
+
+        async def result_callback(result, properties=None):
+            callback_results.append((result, properties))
+
+        params = Mock()
+        params.arguments = {}
+        params.result_callback = result_callback
+
+        with patch(
+            "api.services.workflow.pipecat_engine_custom_tools.execute_tvox_callback_tool",
+            new_callable=AsyncMock,
+            return_value={
+                "status": "error",
+                "status_code": 500,
+                "error": "server error",
+                "end_call": False,
+            },
+        ):
+            await handler(params)
+
+        mock_engine.end_call_with_reason.assert_not_awaited()
+        assert callback_results[0][0]["status"] == "error"
+        assert callback_results[0][1] is None
+
 
 def _update_llm_context(context, system_message, functions):
     """Inline helper replicating the old update_llm_context for tests."""

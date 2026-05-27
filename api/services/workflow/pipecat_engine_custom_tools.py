@@ -32,6 +32,7 @@ from api.services.workflow.tools.custom_tool import (
     execute_http_tool,
     tool_to_function_schema,
 )
+from api.services.workflow.tools.tvox_callback import execute_tvox_callback_tool
 
 if TYPE_CHECKING:
     from api.services.workflow.mcp_tool_session import McpToolSession
@@ -296,6 +297,12 @@ class CustomToolManager:
         elif tool.category == ToolCategory.TRANSFER_CALL.value:
             timeout_secs = 120.0
             handler = self._create_transfer_call_handler(tool, function_name)
+        elif tool.category == ToolCategory.TVOX_CALLBACK.value:
+            timeout_ms = ((tool.definition or {}).get("config", {}) or {}).get(
+                "timeout_ms", 10000
+            )
+            timeout_secs = float(timeout_ms) / 1000
+            handler = self._create_tvox_callback_handler(tool, function_name)
         else:
             timeout_ms = ((tool.definition or {}).get("config", {}) or {}).get(
                 "timeout_ms", 5000
@@ -483,6 +490,59 @@ class CustomToolManager:
                 )
 
         return end_call_handler
+
+    def _create_tvox_callback_handler(self, tool: Any, function_name: str):
+        """Create a handler for the built-in TVox callback tool."""
+
+        end_call_properties = FunctionCallResultProperties(run_llm=False)
+
+        async def tvox_callback_handler(
+            function_call_params: FunctionCallParams,
+        ) -> None:
+            logger.info(f"TVox Callback Tool EXECUTED: {function_name}")
+            logger.info(f"Arguments: {function_call_params.arguments}")
+
+            try:
+                result = await execute_tvox_callback_tool(
+                    tool=tool,
+                    arguments=function_call_params.arguments or {},
+                    initial_context=self._engine._call_context_vars,
+                    gathered_context=self._engine._gathered_context,
+                    organization_id=await self.get_organization_id(),
+                    workflow_run_id=self._engine._workflow_run_id,
+                )
+
+                callback_log = {
+                    "tool_uuid": tool.tool_uuid,
+                    "tool_name": tool.name,
+                    "status": result.get("status"),
+                    "status_code": result.get("status_code"),
+                    "error": result.get("error"),
+                }
+                logs = self._engine._gathered_context.setdefault(
+                    "tvox_callback_logs", []
+                )
+                if isinstance(logs, list):
+                    logs.append(callback_log)
+
+                if result.get("end_call"):
+                    await function_call_params.result_callback(
+                        result, properties=end_call_properties
+                    )
+                    await self._engine.end_call_with_reason(
+                        EndTaskReason.END_CALL_TOOL_REASON.value,
+                        abort_immediately=True,
+                    )
+                else:
+                    await function_call_params.result_callback(result)
+
+            except Exception as e:
+                logger.error(f"TVox callback tool '{function_name}' failed: {e}")
+                await function_call_params.result_callback(
+                    {"status": "error", "error": str(e), "end_call": False}
+                )
+
+        return tvox_callback_handler
 
     def _create_transfer_call_handler(self, tool: Any, function_name: str):
         """Create a handler function for a transfer call tool.

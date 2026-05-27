@@ -972,6 +972,8 @@ export type CreateToolRequest = {
     } & EndCallToolDefinition) | ({
         type: 'transfer_call';
     } & TransferCallToolDefinition) | ({
+        type: 'tvox_callback';
+    } & TvoxCallbackToolDefinition) | ({
         type: 'calculator';
     } & CalculatorToolDefinition) | ({
         type: 'mcp';
@@ -3037,6 +3039,120 @@ export type S3SignedUrlResponse = {
 };
 
 /**
+ * SIPConfigurationRequest
+ *
+ * Request schema for TVox native SIP ingress configuration.
+ */
+export type SipConfigurationRequest = {
+    /**
+     * Provider
+     */
+    provider?: 'sip';
+    /**
+     * Host
+     *
+     * SIP server bind address
+     */
+    host?: string;
+    /**
+     * Port
+     *
+     * SIP server UDP port
+     */
+    port?: number;
+    /**
+     * Rtp Start Port
+     *
+     * Start of RTP port range
+     */
+    rtp_start_port?: number;
+    /**
+     * Rtp End Port
+     *
+     * End of RTP port range
+     */
+    rtp_end_port?: number;
+    /**
+     * Max Concurrent Calls
+     *
+     * Maximum concurrent SIP calls
+     */
+    max_concurrent_calls?: number;
+    /**
+     * Auth Username
+     *
+     * SIP authentication username (optional)
+     */
+    auth_username?: string;
+    /**
+     * Auth Password
+     *
+     * SIP authentication password (optional)
+     */
+    auth_password?: string;
+    /**
+     * Callback Url
+     *
+     * Default TVox callback URL used by built-in TVox callback tools
+     */
+    callback_url?: string | null;
+    /**
+     * Callback Credential Uuid
+     *
+     * Default webhook credential UUID used by built-in TVox callback tools
+     */
+    callback_credential_uuid?: string | null;
+};
+
+/**
+ * SIPConfigurationResponse
+ *
+ * Response schema for TVox configuration with masked sensitive fields.
+ */
+export type SipConfigurationResponse = {
+    /**
+     * Provider
+     */
+    provider?: 'sip';
+    /**
+     * Host
+     */
+    host: string;
+    /**
+     * Port
+     */
+    port: number;
+    /**
+     * Rtp Start Port
+     */
+    rtp_start_port: number;
+    /**
+     * Rtp End Port
+     */
+    rtp_end_port: number;
+    /**
+     * Max Concurrent Calls
+     */
+    max_concurrent_calls: number;
+    /**
+     * Auth Username
+     */
+    auth_username: string;
+    /**
+     * Auth Password
+     */
+    auth_password: string;
+    /**
+     * Callback Url
+     */
+    callback_url?: string | null;
+    /**
+     * Callback Credential Uuid
+     */
+    callback_credential_uuid?: string | null;
+};
+
+/**
  * ScheduleConfigRequest
  */
 export type ScheduleConfigRequest = {
@@ -3281,6 +3397,8 @@ export type TelephonyConfigurationCreateRequest = {
     } & CloudonixConfigurationRequest) | ({
         provider: 'plivo';
     } & PlivoConfigurationRequest) | ({
+        provider: 'sip';
+    } & SipConfigurationRequest) | ({
         provider: 'telnyx';
     } & TelnyxConfigurationRequest) | ({
         provider: 'twilio';
@@ -3392,6 +3510,7 @@ export type TelephonyConfigurationResponse = {
     cloudonix?: CloudonixConfigurationResponse | null;
     ari?: AriConfigurationResponse | null;
     telnyx?: TelnyxConfigurationResponse | null;
+    sip?: SipConfigurationResponse | null;
 };
 
 /**
@@ -3414,6 +3533,8 @@ export type TelephonyConfigurationUpdateRequest = {
     } & CloudonixConfigurationRequest) | ({
         provider: 'plivo';
     } & PlivoConfigurationRequest) | ({
+        provider: 'sip';
+    } & SipConfigurationRequest) | ({
         provider: 'telnyx';
     } & TelnyxConfigurationRequest) | ({
         provider: 'twilio';
@@ -3812,6 +3933,68 @@ export type TurnCredentialsResponse = {
 };
 
 /**
+ * TvoxCallbackConfig
+ *
+ * Configuration for TVox callback tools.
+ */
+export type TvoxCallbackConfig = {
+    /**
+     * Url
+     *
+     * Optional TVox callback URL override. Uses provider-level callback_url when omitted.
+     */
+    url?: string | null;
+    /**
+     * Credential Uuid
+     *
+     * Reference to ExternalCredentialModel for auth
+     */
+    credential_uuid?: string | null;
+    /**
+     * Timeout Ms
+     *
+     * Request timeout in milliseconds
+     */
+    timeout_ms?: number;
+    /**
+     * End Call On Success
+     *
+     * End the active call after TVox accepts the callback with a 2xx response.
+     */
+    end_call_on_success?: boolean;
+    /**
+     * Parameters
+     *
+     * Parameters that the tool accepts from LLM
+     */
+    parameters?: Array<ToolParameter> | null;
+};
+
+/**
+ * TvoxCallbackToolDefinition
+ *
+ * Tool definition for TVox callback tools.
+ */
+export type TvoxCallbackToolDefinition = {
+    /**
+     * Schema Version
+     *
+     * Schema version
+     */
+    schema_version?: number;
+    /**
+     * Type
+     *
+     * Tool type
+     */
+    type: 'tvox_callback';
+    /**
+     * TVox callback configuration
+     */
+    config: TvoxCallbackConfig;
+};
+
+/**
  * TwilioConfigurationRequest
  *
  * Request schema for Twilio configuration.
@@ -3947,6 +4130,8 @@ export type UpdateToolRequest = {
     } & EndCallToolDefinition) | ({
         type: 'transfer_call';
     } & TransferCallToolDefinition) | ({
+        type: 'tvox_callback';
+    } & TvoxCallbackToolDefinition) | ({
         type: 'calculator';
     } & CalculatorToolDefinition) | ({
         type: 'mcp';
@@ -8812,6 +8997,8 @@ export type SaveTelephonyConfigurationApiV1OrganizationsTelephonyConfigPostData 
     } & CloudonixConfigurationRequest) | ({
         provider: 'plivo';
     } & PlivoConfigurationRequest) | ({
+        provider: 'sip';
+    } & SipConfigurationRequest) | ({
         provider: 'telnyx';
     } & TelnyxConfigurationRequest) | ({
         provider: 'twilio';

@@ -39,6 +39,8 @@ class SIPProvider(TelephonyProvider):
         self._max_concurrent_calls = int(config.get("max_concurrent_calls", 100))
         self._auth_username = config.get("auth_username", "")
         self._auth_password = config.get("auth_password", "")
+        self._callback_url = config.get("callback_url")
+        self._callback_credential_uuid = config.get("callback_credential_uuid")
 
     @property
     def host(self) -> str:
@@ -67,6 +69,14 @@ class SIPProvider(TelephonyProvider):
     @property
     def auth_password(self) -> str:
         return self._auth_password
+
+    @property
+    def callback_url(self) -> Optional[str]:
+        return self._callback_url
+
+    @property
+    def callback_credential_uuid(self) -> Optional[str]:
+        return self._callback_credential_uuid
 
     # ── TelephonyProvider interface ──────────────────────────────────
 

@@ -2,3 +2,4 @@ export { BuiltinToolConfig, type BuiltinToolConfigProps } from "./BuiltinToolCon
 export { EndCallToolConfig, type EndCallToolConfigProps } from "./EndCallToolConfig";
 export { HttpApiToolConfig, type HttpApiToolConfigProps } from "./HttpApiToolConfig";
 export { TransferCallToolConfig, type TransferCallToolConfigProps } from "./TransferCallToolConfig";
+export { TvoxCallbackToolConfig, type TvoxCallbackToolConfigProps } from "./TvoxCallbackToolConfig";

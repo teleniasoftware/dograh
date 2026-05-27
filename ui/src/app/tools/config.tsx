@@ -1,6 +1,6 @@
 "use client";
 
-import { Calculator, Cog, Globe, type LucideIcon, PhoneForwarded, PhoneOff, Puzzle } from "lucide-react";
+import { Calculator, Cog, Globe, type LucideIcon, PhoneForwarded, PhoneOff, Puzzle, Webhook } from "lucide-react";
 import { type ReactNode } from "react";
 
 import type {
@@ -11,9 +11,10 @@ import type {
     McpToolDefinition,
     TransferCallConfig,
     TransferCallToolDefinition,
+    TvoxCallbackToolDefinition,
 } from "@/client/types.gen";
 
-export type ToolCategory = "http_api" | "end_call" | "transfer_call" | "calculator" | "native" | "integration" | "mcp";
+export type ToolCategory = "http_api" | "end_call" | "transfer_call" | "calculator" | "tvox_callback" | "native" | "integration" | "mcp";
 
 export type EndCallMessageType = "none" | "custom" | "audio";
 
@@ -77,6 +78,18 @@ export const TOOL_CATEGORIES: ToolCategoryConfig[] = [
         },
     },
     {
+        value: "tvox_callback",
+        label: "TVox Callback",
+        description: "Send collected values back to TVox and end the call on success",
+        icon: Webhook,
+        iconName: "webhook",
+        iconColor: "#0EA5E9",
+        autoFill: {
+            name: "TVox Callback",
+            description: "Send the collected conversation values back to TVox and end the call once TVox accepts them",
+        },
+    },
+    {
         value: "mcp",
         label: "MCP Server",
         description: "Connect a customer MCP server; its tools become available to the agent",
@@ -133,6 +146,8 @@ export function getToolTypeLabel(category: string): string {
             return "HTTP API Tool";
         case "calculator":
             return "Calculator Tool";
+        case "tvox_callback":
+            return "TVox Callback Tool";
         case "native":
             return "Native Tool";
         case "integration":
@@ -164,6 +179,7 @@ export type ToolDefinition =
     | HttpApiToolDefinition
     | EndCallToolDefinition
     | TransferCallToolDefinition
+    | TvoxCallbackToolDefinition
     | CalculatorToolDefinition
     | McpToolDefinition;
 
@@ -201,6 +217,18 @@ export function createCalculatorDefinition(): CalculatorToolDefinition {
     };
 }
 
+export function createTvoxCallbackDefinition(): TvoxCallbackToolDefinition {
+    return {
+        schema_version: 1,
+        type: "tvox_callback",
+        config: {
+            timeout_ms: 10000,
+            end_call_on_success: true,
+            parameters: [],
+        },
+    };
+}
+
 export const MCP_URL_PATTERN = /^https?:\/\//i;
 
 export function createMcpDefinition(
@@ -231,6 +259,8 @@ export function createToolDefinition(category: ToolCategory): ToolDefinition {
             return createTransferCallDefinition(DEFAULT_TRANSFER_CALL_CONFIG);
         case "calculator":
             return createCalculatorDefinition();
+        case "tvox_callback":
+            return createTvoxCallbackDefinition();
         case "http_api":
         default:
             return createHttpApiDefinition();

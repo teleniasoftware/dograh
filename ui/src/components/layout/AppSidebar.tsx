@@ -3,7 +3,6 @@
 import type { Team } from "@stackframe/stack";
 import {
   AlertTriangle,
-  ArrowUpCircle,
   AudioLines,
   Brain,
   ChevronLeft,
@@ -53,7 +52,6 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAppConfig } from "@/context/AppConfigContext";
 import { useTelephonyConfigWarnings } from "@/context/TelephonyConfigWarningsContext";
-import { useLatestReleaseVersion } from "@/hooks/useLatestReleaseVersion";
 import type { LocalUser } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -176,11 +174,6 @@ export function AppSidebar() {
   const versionInfo = config ? { ui: config.uiVersion, api: config.apiVersion } : null;
 
   // Check for updates only on self-hosted (OSS) deployments — cloud is managed for the user.
-  const { latest: latestRelease, isBehind, isLatest } = useLatestReleaseVersion(
-    versionInfo?.ui,
-    { enabled: config?.deploymentMode === "oss" },
-  );
-
   const isActive = (path: string) => pathname.startsWith(path);
 
   const handleMobileNavClick = () => {

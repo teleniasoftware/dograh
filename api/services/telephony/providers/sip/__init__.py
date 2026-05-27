@@ -28,6 +28,8 @@ def _config_loader(value: Dict[str, Any]) -> Dict[str, Any]:
         "max_concurrent_calls": int(value.get("max_concurrent_calls", 100)),
         "auth_username": value.get("auth_username", ""),
         "auth_password": value.get("auth_password", ""),
+        "callback_url": value.get("callback_url"),
+        "callback_credential_uuid": value.get("callback_credential_uuid"),
     }
 
 
@@ -77,6 +79,20 @@ _UI_METADATA = ProviderUIMetadata(
             type="password",
             sensitive=True,
             description="SIP authentication password (optional)",
+        ),
+        ProviderUIField(
+            name="callback_url",
+            label="Callback URL",
+            type="text",
+            required=False,
+            description="Default TVox workflow callback endpoint for built-in callback tools",
+        ),
+        ProviderUIField(
+            name="callback_credential_uuid",
+            label="Callback Credential UUID",
+            type="text",
+            required=False,
+            description="Optional credential UUID used by TVox callback tools",
         ),
     ],
 )

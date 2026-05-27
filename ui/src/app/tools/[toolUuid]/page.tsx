@@ -15,6 +15,7 @@ import type {
     RecordingResponseSchema,
     ToolResponse,
     TransferCallConfig as APITransferCallConfig,
+    TvoxCallbackToolDefinition,
     UpdateToolRequest,
 } from "@/client/types.gen";
 import {
@@ -52,7 +53,13 @@ import {
     renderToolIcon,
     type ToolCategory,
 } from "../config";
-import { BuiltinToolConfig, EndCallToolConfig, HttpApiToolConfig, TransferCallToolConfig } from "./components";
+import {
+    BuiltinToolConfig,
+    EndCallToolConfig,
+    HttpApiToolConfig,
+    TransferCallToolConfig,
+    TvoxCallbackToolConfig,
+} from "./components";
 
 function normalizeParameterType(value: string | null | undefined): ParameterType {
     switch (value) {
@@ -119,6 +126,12 @@ export default function ToolDetailPage() {
     const [mcpUrl, setMcpUrl] = useState("");
     const [mcpCredentialUuid, setMcpCredentialUuid] = useState("");
     const [mcpToolsFilter, setMcpToolsFilter] = useState("");
+
+    // TVox callback form state
+    const [tvoxUrl, setTvoxUrl] = useState("");
+    const [tvoxCredentialUuid, setTvoxCredentialUuid] = useState("");
+    const [tvoxTimeoutMs, setTvoxTimeoutMs] = useState(10000);
+    const [tvoxEndCallOnSuccess, setTvoxEndCallOnSuccess] = useState(true);
 
     // Org-level recordings for audio dropdowns
     const [recordings, setRecordings] = useState<RecordingResponseSchema[]>([]);
@@ -210,6 +223,32 @@ export default function ToolDetailPage() {
                 setMcpUrl("");
                 setMcpCredentialUuid("");
                 setMcpToolsFilter("");
+            }
+        } else if (tool.category === "tvox_callback") {
+            const config = tool.definition?.config as TvoxCallbackToolDefinition["config"] | undefined;
+            if (config) {
+                setTvoxUrl(config.url || "");
+                setTvoxCredentialUuid(config.credential_uuid || "");
+                setTvoxTimeoutMs(config.timeout_ms || 10000);
+                setTvoxEndCallOnSuccess(config.end_call_on_success ?? true);
+                if (config.parameters && Array.isArray(config.parameters)) {
+                    setParameters(
+                        config.parameters.map((p) => ({
+                            name: p.name || "",
+                            type: normalizeParameterType(p.type),
+                            description: p.description || "",
+                            required: p.required ?? true,
+                        }))
+                    );
+                } else {
+                    setParameters([]);
+                }
+            } else {
+                setTvoxUrl("");
+                setTvoxCredentialUuid("");
+                setTvoxTimeoutMs(10000);
+                setTvoxEndCallOnSuccess(true);
+                setParameters([]);
             }
         } else {
             // Populate HTTP API specific fields
@@ -311,6 +350,20 @@ export default function ToolDetailPage() {
                 setError("MCP server URL must start with http:// or https://");
                 return;
             }
+        } else if (tool.category === "tvox_callback") {
+            if (tvoxUrl.trim()) {
+                const urlValidation = validateUrl(tvoxUrl);
+                if (!urlValidation.valid) {
+                    setError(urlValidation.error || "Invalid TVox callback URL");
+                    return;
+                }
+            }
+
+            const invalidParams = parameters.filter((p) => !p.name.trim());
+            if (invalidParams.length > 0) {
+                setError("All parameters must have a name");
+                return;
+            }
         } else if (tool.category !== "end_call") {
             // Validate URL for HTTP API tools
             const urlValidation = validateUrl(url);
@@ -392,6 +445,23 @@ export default function ToolDetailPage() {
                     name,
                     description: description || undefined,
                     definition: createMcpDefinition(mcpUrl, mcpCredentialUuid, mcpToolsFilter),
+                };
+            } else if (tool.category === "tvox_callback") {
+                const validParameters = parameters.filter((p) => p.name.trim());
+                requestBody = {
+                    name,
+                    description: description || undefined,
+                    definition: {
+                        schema_version: 1,
+                        type: "tvox_callback",
+                        config: {
+                            url: tvoxUrl.trim() || undefined,
+                            credential_uuid: tvoxCredentialUuid || undefined,
+                            timeout_ms: tvoxTimeoutMs,
+                            end_call_on_success: tvoxEndCallOnSuccess,
+                            parameters: validParameters.length > 0 ? validParameters : undefined,
+                        },
+                    },
                 };
             } else {
                 // Build HTTP API request body
@@ -552,6 +622,7 @@ const data = await response.json();`;
     const isTransferCallTool = tool.category === "transfer_call";
     const isBuiltinTool = tool.category === "calculator";
     const isMcpTool = tool.category === "mcp";
+    const isTvoxCallbackTool = tool.category === "tvox_callback";
     const categoryConfig = getCategoryConfig(tool.category as ToolCategory);
 
     return (
@@ -587,7 +658,7 @@ const data = await response.json();`;
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            {!isEndCallTool && !isTransferCallTool && !isBuiltinTool && !isMcpTool && (
+                            {!isEndCallTool && !isTransferCallTool && !isBuiltinTool && !isMcpTool && !isTvoxCallbackTool && (
                                 <Button
                                     variant="outline"
                                     onClick={() => setShowCodeDialog(true)}
@@ -728,6 +799,23 @@ const data = await response.json();`;
                                 </div>
                             </CardContent>
                         </Card>
+                    ) : isTvoxCallbackTool ? (
+                        <TvoxCallbackToolConfig
+                            name={name}
+                            onNameChange={setName}
+                            description={description}
+                            onDescriptionChange={setDescription}
+                            url={tvoxUrl}
+                            onUrlChange={setTvoxUrl}
+                            credentialUuid={tvoxCredentialUuid}
+                            onCredentialUuidChange={setTvoxCredentialUuid}
+                            timeoutMs={tvoxTimeoutMs}
+                            onTimeoutMsChange={setTvoxTimeoutMs}
+                            endCallOnSuccess={tvoxEndCallOnSuccess}
+                            onEndCallOnSuccessChange={setTvoxEndCallOnSuccess}
+                            parameters={parameters}
+                            onParametersChange={setParameters}
+                        />
                     ) : (
                         <HttpApiToolConfig
                             name={name}

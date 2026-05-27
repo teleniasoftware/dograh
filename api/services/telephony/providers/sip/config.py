@@ -46,6 +46,14 @@ class SIPConfigurationRequest(BaseModel):
         default="",
         description="SIP authentication password (optional)",
     )
+    callback_url: str | None = Field(
+        default=None,
+        description="Default TVox callback URL used by built-in TVox callback tools",
+    )
+    callback_credential_uuid: str | None = Field(
+        default=None,
+        description="Default webhook credential UUID used by built-in TVox callback tools",
+    )
 
 
 class SIPConfigurationResponse(BaseModel):
@@ -59,3 +67,5 @@ class SIPConfigurationResponse(BaseModel):
     max_concurrent_calls: int
     auth_username: str
     auth_password: str  # Masked by the API layer
+    callback_url: str | None = None
+    callback_credential_uuid: str | None = None

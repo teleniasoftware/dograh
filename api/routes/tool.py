@@ -161,6 +161,31 @@ class TransferCallConfig(BaseModel):
         return v
 
 
+class TvoxCallbackConfig(BaseModel):
+    """Configuration for TVox callback tools."""
+
+    url: Optional[str] = Field(
+        default=None,
+        description="Optional TVox callback URL override. Uses provider-level callback_url when omitted.",
+    )
+    credential_uuid: Optional[str] = Field(
+        default=None, description="Reference to ExternalCredentialModel for auth"
+    )
+    timeout_ms: int = Field(
+        default=10000,
+        ge=1000,
+        le=30000,
+        description="Request timeout in milliseconds",
+    )
+    end_call_on_success: bool = Field(
+        default=True,
+        description="End the active call after TVox accepts the callback with a 2xx response.",
+    )
+    parameters: Optional[List[ToolParameter]] = Field(
+        default=None, description="Parameters that the tool accepts from LLM"
+    )
+
+
 class HttpApiToolDefinition(BaseModel):
     """Tool definition for HTTP API tools."""
 
@@ -185,6 +210,14 @@ class TransferCallToolDefinition(BaseModel):
     config: TransferCallConfig = Field(description="Transfer Call configuration")
 
 
+class TvoxCallbackToolDefinition(BaseModel):
+    """Tool definition for TVox callback tools."""
+
+    schema_version: int = Field(default=1, description="Schema version")
+    type: Literal["tvox_callback"] = Field(description="Tool type")
+    config: TvoxCallbackConfig = Field(description="TVox callback configuration")
+
+
 class CalculatorToolDefinition(BaseModel):
     """Tool definition for Calculator tools (no configuration needed)."""
 
@@ -198,6 +231,7 @@ ToolDefinition = Annotated[
         HttpApiToolDefinition,
         EndCallToolDefinition,
         TransferCallToolDefinition,
+        TvoxCallbackToolDefinition,
         CalculatorToolDefinition,
         McpToolDefinition,
     ],

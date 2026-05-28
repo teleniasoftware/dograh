@@ -2,7 +2,7 @@ import json
 import re
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -44,6 +44,11 @@ from api.services.workflow.trigger_paths import (
 )
 from api.services.workflow.workflow_graph import WorkflowGraph
 from api.utils.artifacts import artifact_url
+
+import random
+from api.services.gen_ai.json_parser import parse_llm_json
+from api.services.pipecat.service_factory import create_llm_service_from_provider
+from pipecat.processors.aggregators.llm_context import LLMContext
 
 router = APIRouter(prefix="/workflow")
 
@@ -235,6 +240,11 @@ class DuplicateTemplateRequest(BaseModel):
     template_id: int
     workflow_name: str
 
+class CreateWorkflowTemplateRequest(BaseModel):
+    call_type: Literal["inbound", "outbound"]
+    use_case: str
+    activity_description: str
+
 
 class UpdateWorkflowRequest(BaseModel):
     name: str | None = None
@@ -412,6 +422,281 @@ async def create_workflow(
     }
 
 
+
+@router.post("/create/template")
+async def create_workflow_from_template(
+    request: CreateWorkflowTemplateRequest,
+    user: UserModel = Depends(get_user),
+) -> WorkflowResponse:
+    """
+    Create a new workflow from a natural language template request.
+
+    Uses the user's globally configured LLM to generate a complete
+    voice agent workflow definition from call_type, use_case, and
+    activity_description.
+
+    Args:
+        request: The template creation request with call_type, use_case, and activity_description
+        user: The authenticated user
+
+    Returns:
+        The created workflow
+
+    Raises:
+        HTTPException: If LLM generation fails or the generated workflow is invalid
+    """
+    try:
+        # Resolve the user's configured LLM
+        user_configuration = await db_client.get_user_configurations(user.id)
+        llm_config = user_configuration.model_dump(exclude_none=True).get("llm", {})
+
+        provider = llm_config.get("provider", "openai")
+        api_key = llm_config.get("api_key", "")
+        if isinstance(api_key, list):
+            api_key = random.choice(api_key)
+        model = llm_config.get("model", "gpt-4.1")
+        if not api_key:
+            raise HTTPException(
+                status_code=400,
+                detail="No LLM API key configured. Please configure an LLM provider in your settings.",
+            )
+
+        kwargs = {}
+        if provider == "azure":
+            kwargs["endpoint"] = llm_config.get("endpoint", "")
+        elif provider == "openrouter" and llm_config.get("base_url"):
+            kwargs["base_url"] = llm_config["base_url"]
+        elif provider == "openai" and llm_config.get("base_url"):
+            kwargs["base_url"] = llm_config["base_url"]
+        elif provider == "speaches" and llm_config.get("base_url"):
+            kwargs["base_url"] = llm_config["base_url"]
+        elif provider == "aws_bedrock":
+            kwargs["aws_access_key"] = llm_config.get("aws_access_key", "")
+            kwargs["aws_secret_key"] = llm_config.get("aws_secret_key", "")
+            kwargs["aws_region"] = llm_config.get("aws_region", "")
+        elif provider == "google_vertex":
+            kwargs["project_id"] = llm_config.get("project_id", "")
+            kwargs["location"] = llm_config.get("location", "")
+            kwargs["credentials"] = llm_config.get("credentials", "")
+        elif provider == "minimax":
+            kwargs["base_url"] = llm_config.get("base_url", "")
+            kwargs["temperature"] = llm_config.get("temperature", 1.0)
+
+        # Create LLM service
+        llm = create_llm_service_from_provider(provider, model, api_key, **kwargs)
+
+        # Build the prompt
+        call_type_label = (
+            "inbound (the bot receives incoming calls)"
+            if request.call_type == "inbound"
+            else "outbound (the bot places outgoing calls)"
+        )
+
+        system_prompt = f"""\
+You are a voice AI workflow designer. Generate a complete workflow definition
+for a Dograh voice agent as a JSON object.
+
+## Workflow JSON Schema
+
+The output must be a JSON object with this structure:
+{{
+  "nodes": [
+    {{
+      "id": "<uuid-v4>",
+      "type": "<node-type>",
+      "position": {{"x": <number>, "y": <number>}},
+      "data": {{
+        "name": "<descriptive name>",
+        ...type-specific fields
+      }}
+    }}
+  ],
+  "edges": [
+    {{
+      "id": "<uuid-v4>",
+      "source": "<source-node-id>",
+      "target": "<target-node-id>",
+      "data": {{
+        "label": "<short branch label, max 4 words>",
+        "condition": "<natural language routing condition>"
+      }}
+    }}
+  ],
+  "viewport": {{"x": 0, "y": 0, "zoom": 0.75}}
+}}
+
+## Node Types
+
+### startCall (REQUIRED — exactly one, first node)
+- type: "startCall"
+- data.name: string
+- data.prompt: string (the initial greeting/system prompt)
+- data.is_start: true
+- data.extraction_enabled: false
+
+### agentNode (LLM agent — the main conversational node)
+- type: "agentNode"
+- data.name: string
+- data.prompt: string (detailed system prompt for the agent's behavior)
+- data.extraction_enabled: true|false (whether to extract structured data)
+- data.extraction_variables: [{{"name": "...", "type": "string|number|boolean", "description": "..."}}] (only if extraction_enabled)
+- data.tool_uuids: []
+- data.document_uuids: []
+
+### endCall (REQUIRED — exactly one, last node)
+- type: "endCall"
+- data.name: string
+- data.prompt: string (farewell message)
+- data.is_end: true
+
+### globalNode (global context/persona)
+- type: "globalNode"
+- data.name: string
+- data.prompt: string (global instructions that apply across all nodes)
+
+## Rules
+1. ALWAYS include exactly one startCall node and one endCall node
+2. Use v4 UUIDs for all node and edge IDs
+3. Position nodes left-to-right: first at x=0, each subsequent at x+=400, y=0
+4. Every edge must connect a valid source to a valid target
+5. Edge labels should be short: "next", "qualified", "not interested", etc.
+6. Edge conditions describe when to take that branch
+7. For simple agents: startCall → agentNode → endCall
+8. For complex agents: startCall → agentNode1 → agentNode2 → ... → endCall
+9. Prompts should be detailed, in character, and reference the use case
+10. Use `extraction_enabled: true` with relevant variables when the agent needs to collect structured data
+
+## Example Output
+For a lead qualification agent:
+{{
+  "nodes": [
+    {{"id": "a1b2c3d4-...", "type": "startCall", "position": {{"x": 0, "y": 0}}, "data": {{"name": "Greeting", "prompt": "Hello! I'm calling from Acme Corp about your recent inquiry. How are you today?", "is_start": true, "extraction_enabled": false}}}},
+    {{"id": "b2c3d4e5-...", "type": "agentNode", "position": {{"x": 400, "y": 0}}, "data": {{"name": "Qualify Lead", "prompt": "You are a lead qualification agent for Acme Corp. Ask about: budget, timeline, decision-maker role. Be friendly but efficient. If they're not interested, politely end the call.", "extraction_enabled": true, "extraction_variables": [{{"name": "budget", "type": "string", "description": "The prospect's stated budget"}}, {{"name": "timeline", "type": "string", "description": "When they plan to purchase"}}], "tool_uuids": [], "document_uuids": []}}}},
+    {{"id": "c3d4e5f6-...", "type": "endCall", "position": {{"x": 800, "y": 0}}, "data": {{"name": "End", "prompt": "Thank you for your time! We'll follow up with more information. Have a great day!", "is_end": true}}}}
+  ],
+  "edges": [
+    {{"id": "d4e5f6a7-...", "source": "a1b2c3d4-...", "target": "b2c3d4e5-...", "data": {{"label": "next", "condition": "greeting complete"}}}},
+    {{"id": "e5f6a7b8-...", "source": "b2c3d4e5-...", "target": "c3d4e5f6-...", "data": {{"label": "wrap up", "condition": "qualification complete or caller not interested"}}}}
+  ],
+  "viewport": {{"x": 0, "y": 0, "zoom": 0.75}}
+}}
+
+IMPORTANT: Return ONLY the JSON object, no markdown fences, no explanation, no trailing text."""
+
+        user_prompt = f"""\
+Create a voice agent workflow for:
+- Call type: {call_type_label}
+- Use case: {request.use_case}
+- Activity description: {request.activity_description}"""
+
+        # Build LLM context
+        context = LLMContext()
+        context.add_message(
+            {"role": "system", "content": system_prompt}
+        )
+        context.add_message(
+            {"role": "user", "content": user_prompt}
+        )
+
+        # Call LLM
+        response_text = await llm.run_inference(context)
+        if not response_text or not response_text.strip():
+            raise HTTPException(
+                status_code=500, detail="LLM returned an empty response"
+            )
+
+        # Parse the JSON response
+        parsed = parse_llm_json(response_text)
+        if not parsed or isinstance(parsed, list):
+            raise HTTPException(
+                status_code=500,
+                detail=f"LLM did not return a valid workflow JSON object. Response: {response_text[:500]}",
+            )
+
+        # Extract and validate the workflow definition
+        workflow_def = parsed
+        if "nodes" not in workflow_def:
+            # The response might be wrapped in a key
+            workflow_def = parsed
+
+        # Ensure required fields exist
+        if not isinstance(workflow_def.get("nodes"), list) or len(workflow_def["nodes"]) == 0:
+            raise HTTPException(
+                status_code=500,
+                detail="Generated workflow has no nodes",
+            )
+        if not isinstance(workflow_def.get("edges"), list):
+            workflow_def["edges"] = []
+        if not isinstance(workflow_def.get("viewport"), dict):
+            workflow_def["viewport"] = {"x": 0, "y": 0, "zoom": 0.75}
+
+        # Regenerate trigger UUIDs
+        workflow_def = regenerate_trigger_uuids(workflow_def)
+
+        # Validate trigger paths
+        trigger_paths = extract_trigger_paths(workflow_def) if workflow_def else []
+        if trigger_paths:
+            try:
+                await db_client.assert_trigger_paths_available(
+                    trigger_paths=trigger_paths,
+                )
+            except TriggerPathConflictError as e:
+                raise HTTPException(status_code=409, detail=str(e))
+
+        # Determine workflow name
+        workflow_name = workflow_def.get("name") or f"{request.use_case} - {request.call_type}"
+        # Remove name from definition if present (it's not part of the node graph)
+        workflow_def.pop("name", None)
+
+        workflow = await db_client.create_workflow(
+            name=workflow_name,
+            workflow_definition=workflow_def,
+            user_id=user.id,
+            organization_id=user.selected_organization_id,
+        )
+
+        capture_event(
+            distinct_id=str(user.provider_id),
+            event=PostHogEvent.WORKFLOW_CREATED,
+            properties={
+                "workflow_id": workflow.id,
+                "workflow_name": workflow.name,
+                "source": "template",
+                "call_type": request.call_type,
+                "use_case": request.use_case,
+                "organization_id": user.selected_organization_id,
+            },
+        )
+
+        if trigger_paths:
+            await db_client.sync_triggers_for_workflow(
+                workflow_id=workflow.id,
+                organization_id=user.selected_organization_id,
+                trigger_paths=trigger_paths,
+            )
+
+        return {
+            "id": workflow.id,
+            "name": workflow.name,
+            "status": workflow.status,
+            "created_at": workflow.created_at,
+            "workflow_definition": mask_workflow_definition(workflow_def),
+            "current_definition_id": workflow.current_definition_id,
+            "template_context_variables": workflow.template_context_variables,
+            "call_disposition_codes": workflow.call_disposition_codes,
+            "workflow_configurations": mask_workflow_configurations(
+                workflow.workflow_configurations
+            ),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error creating workflow from template: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}",
+        )
 
 class WorkflowSummaryResponse(BaseModel):
     id: int

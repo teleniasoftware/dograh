@@ -1427,6 +1427,24 @@ export type DocumentUploadResponseSchema = {
 };
 
 /**
+ * CreateWorkflowTemplateRequest
+ */
+export type CreateWorkflowTemplateRequest = {
+    /**
+     * Call Type
+     */
+    call_type: 'inbound' | 'outbound';
+    /**
+     * Use Case
+     */
+    use_case: string;
+    /**
+     * Activity Description
+     */
+    activity_description: string;
+};
+
+/**
  * DuplicateTemplateRequest
  */
 export type DuplicateTemplateRequest = {
@@ -5611,6 +5629,27 @@ export type CreateWorkflowApiV1WorkflowCreateDefinitionPostResponses = {
 };
 
 export type CreateWorkflowApiV1WorkflowCreateDefinitionPostResponse = CreateWorkflowApiV1WorkflowCreateDefinitionPostResponses[keyof CreateWorkflowApiV1WorkflowCreateDefinitionPostResponses];
+
+export type CreateWorkflowTemplateApiV1WorkflowCreateTemplatePostData = {
+    body: CreateWorkflowTemplateRequest;
+};
+
+export type CreateWorkflowTemplateApiV1WorkflowCreateTemplatePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: unknown;
+};
+
+export type CreateWorkflowTemplateApiV1WorkflowCreateTemplatePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowResponse;
+};
+
+export type CreateWorkflowTemplateApiV1WorkflowCreateTemplatePostResponse = CreateWorkflowTemplateApiV1WorkflowCreateTemplatePostResponses[keyof CreateWorkflowTemplateApiV1WorkflowCreateTemplatePostResponses];
+
 
 export type GetWorkflowCountApiV1WorkflowCountGetData = {
     body?: never;

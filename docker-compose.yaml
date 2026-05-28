@@ -180,7 +180,7 @@ services:
       SIP_RTP_START_PORT: "${SIP_RTP_START_PORT:-10000}"
       SIP_RTP_END_PORT: "${SIP_RTP_END_PORT:-10400}"
 
-      OSS_JWT_SECRET: "${OSS_JWT_SECRET:-ChangeMeInProduction}"
+      OSS_JWT_SECRET: "${OSS_JWT_SECRET:?OSS_JWT_SECRET must be set to a strong secret}"
 
       # Telemetry
       ENABLE_TELEMETRY: "${ENABLE_TELEMETRY:-false}"

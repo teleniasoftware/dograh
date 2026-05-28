@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 
-import ChatwootWidget from "@/components/ChatwootWidget";
 import AppLayout from "@/components/layout/AppLayout";
 import PostHogIdentify from "@/components/PostHogIdentify";
 import { SentryErrorBoundary } from "@/components/SentryErrorBoundary";
@@ -73,7 +72,6 @@ export default function RootLayout({
                         {children}
                       </AppLayout>
                       <Toaster />
-                      <ChatwootWidget />
                     </OnboardingProvider>
                   </TelephonyConfigWarningsProvider>
                 </UserConfigProvider>

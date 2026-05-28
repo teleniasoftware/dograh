@@ -993,6 +993,24 @@ export type CreateWorkflowRunResponse = {
 };
 
 /**
+ * CreateWorkflowTemplateRequest
+ */
+export type CreateWorkflowTemplateRequest = {
+    /**
+     * Call Type
+     */
+    call_type: 'inbound' | 'outbound';
+    /**
+     * Use Case
+     */
+    use_case: string;
+    /**
+     * Activity Description
+     */
+    activity_description: string;
+};
+
+/**
  * CreatedByResponse
  *
  * Response schema for the user who created a tool.
@@ -1424,24 +1442,6 @@ export type DocumentUploadResponseSchema = {
      * S3 key where file should be uploaded
      */
     s3_key: string;
-};
-
-/**
- * CreateWorkflowTemplateRequest
- */
-export type CreateWorkflowTemplateRequest = {
-    /**
-     * Call Type
-     */
-    call_type: 'inbound' | 'outbound';
-    /**
-     * Use Case
-     */
-    use_case: string;
-    /**
-     * Activity Description
-     */
-    activity_description: string;
 };
 
 /**
@@ -5630,26 +5630,44 @@ export type CreateWorkflowApiV1WorkflowCreateDefinitionPostResponses = {
 
 export type CreateWorkflowApiV1WorkflowCreateDefinitionPostResponse = CreateWorkflowApiV1WorkflowCreateDefinitionPostResponses[keyof CreateWorkflowApiV1WorkflowCreateDefinitionPostResponses];
 
-export type CreateWorkflowTemplateApiV1WorkflowCreateTemplatePostData = {
+export type CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostData = {
     body: CreateWorkflowTemplateRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/workflow/create/template';
 };
 
-export type CreateWorkflowTemplateApiV1WorkflowCreateTemplatePostErrors = {
+export type CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
     /**
      * Validation Error
      */
-    422: unknown;
+    422: HttpValidationError;
 };
 
-export type CreateWorkflowTemplateApiV1WorkflowCreateTemplatePostResponses = {
+export type CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostError = CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostErrors[keyof CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostErrors];
+
+export type CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostResponses = {
     /**
      * Successful Response
      */
     200: WorkflowResponse;
 };
 
-export type CreateWorkflowTemplateApiV1WorkflowCreateTemplatePostResponse = CreateWorkflowTemplateApiV1WorkflowCreateTemplatePostResponses[keyof CreateWorkflowTemplateApiV1WorkflowCreateTemplatePostResponses];
-
+export type CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostResponse = CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostResponses[keyof CreateWorkflowFromTemplateApiV1WorkflowCreateTemplatePostResponses];
 
 export type GetWorkflowCountApiV1WorkflowCountGetData = {
     body?: never;

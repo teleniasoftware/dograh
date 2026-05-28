@@ -4,7 +4,6 @@ import aiohttp
 from fastapi import HTTPException
 from loguru import logger
 
-from api.constants import MPS_API_URL
 from api.services.configuration.registry import ServiceProviders
 from api.services.pipecat.minimax_tts import MiniMaxOwnedSessionTTSService
 from api.utils.url_security import validate_user_configured_service_url
@@ -23,9 +22,6 @@ from pipecat.services.deepgram.flux.stt import (
 )
 from pipecat.services.deepgram.stt import DeepgramSTTService, DeepgramSTTSettings
 from pipecat.services.deepgram.tts import DeepgramTTSService, DeepgramTTSSettings
-from pipecat.services.dograh.llm import DograhLLMService
-from pipecat.services.dograh.stt import DograhSTTService, DograhSTTSettings
-from pipecat.services.dograh.tts import DograhTTSService, DograhTTSSettings
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService, ElevenLabsTTSSettings
 from pipecat.services.gladia.stt import GladiaSTTService, GladiaSTTSettings
 from pipecat.services.google.llm import GoogleLLMService, GoogleLLMSettings
@@ -142,19 +138,6 @@ def create_stt_service(
     elif user_config.stt.provider == ServiceProviders.CARTESIA.value:
         return CartesiaSTTService(
             api_key=user_config.stt.api_key,
-            sample_rate=audio_config.transport_in_sample_rate,
-        )
-    elif user_config.stt.provider == ServiceProviders.DOGRAH.value:
-        base_url = MPS_API_URL.replace("http://", "ws://").replace("https://", "wss://")
-        language = getattr(user_config.stt, "language", None) or "multi"
-        return DograhSTTService(
-            base_url=base_url,
-            api_key=user_config.stt.api_key,
-            settings=DograhSTTSettings(
-                model=user_config.stt.model,
-                language=language,
-            ),
-            keyterms=keyterms,
             sample_rate=audio_config.transport_in_sample_rate,
         )
     elif user_config.stt.provider == ServiceProviders.SARVAM.value:
@@ -358,21 +341,6 @@ def create_tts_service(user_config, audio_config: "AudioConfig"):
             skip_aggregator_types=["recording_router", "recording"],
             silence_time_s=1.0,
         )
-    elif user_config.tts.provider == ServiceProviders.DOGRAH.value:
-        # Convert HTTP URL to WebSocket URL for TTS
-        base_url = MPS_API_URL.replace("http://", "ws://").replace("https://", "wss://")
-        return DograhTTSService(
-            base_url=base_url,
-            api_key=user_config.tts.api_key,
-            settings=DograhTTSSettings(
-                model=user_config.tts.model,
-                voice=user_config.tts.voice,
-                speed=user_config.tts.speed,
-            ),
-            text_filters=[xml_function_tag_filter],
-            skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
-        )
     elif user_config.tts.provider == ServiceProviders.CAMB.value:
         from pipecat.services.camb.tts import CambTTSService
 
@@ -571,12 +539,6 @@ def create_llm_service_from_provider(
             api_key=api_key,
             endpoint=endpoint,
             settings=AzureLLMSettings(model=model, temperature=0.1),
-        )
-    elif provider == ServiceProviders.DOGRAH.value:
-        return DograhLLMService(
-            base_url=f"{MPS_API_URL}/api/v1/llm",
-            api_key=api_key,
-            settings=OpenAILLMSettings(model=model),
         )
     elif provider == ServiceProviders.AWS_BEDROCK.value:
         return AWSBedrockLLMService(

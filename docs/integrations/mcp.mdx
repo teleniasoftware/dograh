@@ -9,10 +9,9 @@ Dograh exposes an [MCP (Model Context Protocol)](https://modelcontextprotocol.io
 
 ## Prerequisites
 
-- A Dograh API key. Generate one at [`/api-keys`](https://app.dograh.com/api-keys) (or `http://localhost:3010/api-keys` for self-hosted). See [API Keys](/configurations/api-keys).
+- A Dograh API key. Generate one at `/api-keys` in your deployment, or `http://localhost:3010/api-keys` for local development. See [API Keys](/configurations/api-keys).
 - Your Dograh MCP endpoint:
-  - Hosted: `https://app.dograh.com/api/v1/mcp/`
-  - Self-hosted: `<YOUR_BACKEND_URL>/api/v1/mcp/`
+  - `<YOUR_BACKEND_URL>/api/v1/mcp/`
 
 The endpoint is also shown in **Platform Settings → MCP Server** inside the Dograh UI.
 
@@ -31,11 +30,11 @@ This is only required for self-signed certificates. If you have set up a [custom
 Register Dograh as an MCP server with the Claude Code CLI:
 
 ```bash
-claude mcp add --transport http dograh https://app.dograh.com/api/v1/mcp/ \
+claude mcp add --transport http dograh https://your-backend.example.com/api/v1/mcp/ \
   --header "X-API-Key: YOUR_API_KEY"
 ```
 
-Replace `YOUR_API_KEY` with the key you generated. For self-hosted deployments, swap the URL for your backend.
+Replace `YOUR_API_KEY` with the key you generated and use your deployment's backend URL.
 
 Verify the server is connected:
 
@@ -51,7 +50,7 @@ Open Claude Desktop's config file (`claude_desktop_config.json`) and add the `do
 {
   "mcpServers": {
     "dograh": {
-      "url": "https://app.dograh.com/api/v1/mcp/",
+      "url": "https://your-backend.example.com/api/v1/mcp/",
       "headers": {
         "X-API-Key": "YOUR_API_KEY"
       }

@@ -16,7 +16,6 @@ from api.routes.public_download import router as public_download_router
 from api.routes.public_embed import router as public_embed_router
 from api.routes.reports import router as reports_router
 from api.routes.s3_signed_url import router as s3_router
-from api.routes.service_keys import router as service_keys_router
 from api.routes.superuser import router as superuser_router
 from api.routes.telephony import router as telephony_router
 from api.routes.tool import router as tool_router
@@ -44,7 +43,6 @@ router.include_router(credentials_router)
 router.include_router(tool_router)
 router.include_router(organization_router)
 router.include_router(s3_router)
-router.include_router(service_keys_router)
 router.include_router(organization_usage_router)
 router.include_router(reports_router)
 router.include_router(webrtc_signaling_router)

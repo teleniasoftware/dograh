@@ -18,11 +18,10 @@ Agent-level overrides are **selective** — you can override only the services y
 
 ## Global Configuration
 
-The global configuration is the default model setup shared across all your agents. Dograh ships with its own models by default — when you sign up on https://app.dograh.com or set up the platform on your self-hosted infrastructure, you get some Dograh model credits to start with.
+The global configuration is the default model setup shared across all your agents.
 
 To configure the global models, go to **Model Configurations** in your dashboard:
-- **Hosted:** `https://app.dograh.com/model-configurations`
-- **Self-hosted:** `http://localhost:3010/model-configurations`
+- **Local development:** `http://localhost:3010/model-configurations`
 
 ![Model Configuration](../images/service-configuration.png)
 
@@ -35,7 +34,7 @@ From here you can configure each service:
 | **STT (Transcriber)** | The speech-to-text model that transcribes user speech (e.g., Deepgram, AssemblyAI) |
 | **Realtime** | A single speech-to-speech model that handles LLM, TTS, and STT in one (e.g., Gemini Live) |
 
-Select a provider from the dropdown and configure the API key, model, and any provider-specific settings. For Dograh's own models, see [Service Keys](api-keys) for instructions on creating Service Keys.
+Select a provider from the dropdown and configure the API key, model, and any provider-specific settings.
 
 ## Agent-Level Model Overrides
 
@@ -111,7 +110,7 @@ To use Gemini 3.1 Live with Dograh, you need a Google Gemini API key. Follow the
 
 ### Configuring Gemini 3.1 Live in Dograh
 
-1. Go to **Model Configurations** in your Dograh dashboard (`https://app.dograh.com/model-configurations` for hosted or `http://localhost:3010/model-configurations` for local).
+1. Go to **Model Configurations** in your Dograh dashboard (`/model-configurations` in your deployment, or `http://localhost:3010/model-configurations` for local).
 2. Under the **Realtime** section, select `google_realtime` as the provider.
 3. Paste your Gemini API key.
 4. Select the model (`gemini-3.1-flash-live-preview` is available by default, or you can enter a model name manually).

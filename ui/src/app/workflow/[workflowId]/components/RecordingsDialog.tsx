@@ -7,7 +7,6 @@ import {
     deleteRecordingApiV1WorkflowRecordingsRecordingIdDelete,
     getUploadUrlsApiV1WorkflowRecordingsUploadUrlPost,
     listRecordingsApiV1WorkflowRecordingsGet,
-    transcribeAudioApiV1WorkflowRecordingsTranscribePost,
 } from "@/client";
 import type { RecordingResponseSchema, RecordingUploadResponseSchema } from "@/client/types.gen";
 import { Button } from "@/components/ui/button";
@@ -80,8 +79,6 @@ export const RecordingsDialog = ({
     const audioChunksRef = useRef<Blob[]>([]);
     const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const languageRef = useRef(language);
-    languageRef.current = language;
 
     const ttsProvider = ttsOverrides?.provider ?? (userConfig?.tts?.provider as string) ?? "";
     const ttsModel = ttsOverrides?.model ?? (userConfig?.tts?.model as string) ?? "";
@@ -145,38 +142,6 @@ export const RecordingsDialog = ({
         }
     }, [open, stopRecording, stopRecordingTimer, stopPlayback]);
 
-    const transcribeFile = async (pendingId: string, file: File) => {
-        setPendingFiles((prev) =>
-            prev.map((p) => (p.id === pendingId ? { ...p, isTranscribing: true } : p))
-        );
-        try {
-            const currentLang = languageRef.current;
-            const result = await transcribeAudioApiV1WorkflowRecordingsTranscribePost({
-                body: { file, language: currentLang },
-            });
-            const data = result.data as Record<string, unknown> | undefined;
-            if (data?.transcript) {
-                setPendingFiles((prev) =>
-                    prev.map((p) =>
-                        p.id === pendingId ? { ...p, transcript: data.transcript as string, isTranscribing: false } : p
-                    )
-                );
-            } else {
-                setPendingFiles((prev) =>
-                    prev.map((p) => (p.id === pendingId ? { ...p, isTranscribing: false } : p))
-                );
-            }
-        } catch {
-            setPendingFiles((prev) =>
-                prev.map((p) =>
-                    p.id === pendingId
-                        ? { ...p, isTranscribing: false, error: "Auto-transcription failed" }
-                        : p
-                )
-            );
-        }
-    };
-
     const addPendingFiles = (files: File[]) => {
         const valid: PendingFile[] = [];
         for (const file of files) {
@@ -190,9 +155,6 @@ export const RecordingsDialog = ({
         if (valid.length === 0) return;
         setPendingFiles((prev) => [...prev, ...valid]);
         setError(null);
-        for (const pf of valid) {
-            transcribeFile(pf.id, pf.file);
-        }
     };
 
     const removePendingFile = (pendingId: string) => {

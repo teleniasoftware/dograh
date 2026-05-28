@@ -60,10 +60,16 @@ const initPostHog = () => {
 
 
   if (hasPublicConfig) {
+    const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    if (!apiHost) {
+      console.log('PostHog disabled (NEXT_PUBLIC_POSTHOG_HOST not configured)');
+      return;
+    }
+
     // Use client-side environment variables
     posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-      api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || '/ingest',
-      ui_host: process.env.NEXT_PUBLIC_POSTHOG_UI_HOST || 'https://us.posthog.com',
+      api_host: apiHost,
+      ui_host: process.env.NEXT_PUBLIC_POSTHOG_UI_HOST,
       capture_pageview: 'history_change',
       capture_pageleave: true,
       capture_exceptions: true,
@@ -76,7 +82,7 @@ const initPostHog = () => {
     fetch('/api/config/posthog')
       .then(res => res.json())
       .then(config => {
-        if (config.enabled && config.key) {
+        if (config.enabled && config.key && config.host) {
           posthog.init(config.key, {
             api_host: config.host,
             ui_host: config.uiHost,
@@ -88,7 +94,7 @@ const initPostHog = () => {
           });
           console.log('PostHog initialized from API config');
         } else {
-          console.log('PostHog disabled (not enabled or key not configured)');
+          console.log('PostHog disabled (not enabled or not configured)');
         }
       })
       .catch(err => {

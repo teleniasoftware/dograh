@@ -10,7 +10,7 @@ Core environment variables are centralized in `api/constants.py`. Variables mark
 Dograh supports two deployment modes, set via `DEPLOYMENT_MODE`:
 
 - **OSS**: The default mode. Designed for self-hosted deployments using [Docker Compose](/deployment/docker) — the fastest way to get Dograh running. Uses local JWT authentication and MinIO for storage.
-- **SaaS**: Intended for customised deployments outside of Docker. Authentication and API key management are handled through Dograh Managed Platform Services (MPS), allowing greater flexibility in how the platform is hosted and integrated.
+- **SaaS**: Intended for customised deployments outside of Docker.
 
 The relevant required variables for each mode are noted in the descriptions below.
 
@@ -54,8 +54,6 @@ Never use the placeholder `OSS_JWT_SECRET` in a production deployment. Generate 
 |---|---|---|
 | `BACKEND_API_ENDPOINT` | `http://localhost:8000` | Internal URL of the backend API |
 | `UI_APP_URL` | `http://localhost:3010` | URL of the frontend application |
-| `MPS_API_URL` | `https://services.dograh.com` | Dograh Managed Platform Services URL |
-| `DOGRAH_MPS_SECRET_KEY` | `null` | **Required for non-OSS deployments.** Secret key for authenticating with MPS |
 
 ---
 

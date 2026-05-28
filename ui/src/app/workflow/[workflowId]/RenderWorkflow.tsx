@@ -127,8 +127,8 @@ function RenderWorkflow({
 
     // Single generic component for every node type. Seed with core node types
     // so the initial render is stable before specs load, then merge in any
-    // spec-defined or already-present node types so plugin integrations like
-    // Tuner render without extra React registrations.
+    // spec-defined or already-present node types so integrations render
+    // without extra React registrations.
     const nodeTypes = useMemo(() => {
         const typeNames = new Set<string>([
             ...Object.values(NodeType),

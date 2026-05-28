@@ -2,15 +2,13 @@ import json
 import re
 import uuid
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from httpx import HTTPStatusError
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
 
-from api.constants import DEPLOYMENT_MODE
 from api.db import db_client
 from api.db.agent_trigger_client import TriggerPathConflictError
 from api.db.models import UserModel
@@ -25,7 +23,6 @@ from api.services.configuration.masking import (
     merge_workflow_api_keys,
 )
 from api.services.configuration.resolve import resolve_effective_config
-from api.services.mps_service_key_client import mps_service_key_client
 from api.services.posthog_client import capture_event
 from api.services.reports import generate_workflow_report_csv
 from api.services.storage import storage_fs
@@ -271,12 +268,6 @@ class CreateWorkflowRunResponse(BaseModel):
     initial_context: dict | None = None
 
 
-class CreateWorkflowTemplateRequest(BaseModel):
-    call_type: Literal[CallType.INBOUND.value, CallType.OUTBOUND.value]
-    use_case: str
-    activity_description: str
-
-
 @router.post("/{workflow_id}/validate")
 async def validate_workflow(
     workflow_id: int,
@@ -412,119 +403,6 @@ async def create_workflow(
         "call_disposition_codes": workflow.call_disposition_codes,
         "workflow_configurations": workflow.workflow_configurations,
     }
-
-
-@router.post("/create/template")
-async def create_workflow_from_template(
-    request: CreateWorkflowTemplateRequest,
-    user: UserModel = Depends(get_user),
-) -> WorkflowResponse:
-    """
-    Create a new workflow from a natural language template request.
-
-    This endpoint:
-    1. Uses mps_service_key_client to call MPS workflow API
-    2. Passes organization ID (authenticated mode) or created_by (OSS mode)
-    3. Creates the workflow in the database
-
-    Args:
-        request: The template creation request with call_type, use_case, and activity_description
-        user: The authenticated user
-
-    Returns:
-        The created workflow
-
-    Raises:
-        HTTPException: If MPS API call fails
-    """
-    try:
-        # Call MPS API to generate workflow using the client
-        if DEPLOYMENT_MODE == "oss":
-            workflow_data = await mps_service_key_client.call_workflow_api(
-                call_type=request.call_type.upper(),
-                use_case=request.use_case,
-                activity_description=request.activity_description,
-                created_by=str(user.provider_id),
-            )
-        else:
-            if not user.selected_organization_id:
-                raise HTTPException(status_code=400, detail="No organization selected")
-
-            workflow_data = await mps_service_key_client.call_workflow_api(
-                call_type=request.call_type.upper(),
-                use_case=request.use_case,
-                activity_description=request.activity_description,
-                organization_id=user.selected_organization_id,
-            )
-
-        # Create the workflow in our database
-        # Regenerate trigger UUIDs to avoid conflicts with existing triggers
-        workflow_def = regenerate_trigger_uuids(
-            workflow_data.get("workflow_definition", {})
-        )
-
-        trigger_paths = extract_trigger_paths(workflow_def) if workflow_def else []
-        if trigger_paths:
-            try:
-                await db_client.assert_trigger_paths_available(
-                    trigger_paths=trigger_paths,
-                )
-            except TriggerPathConflictError as e:
-                raise HTTPException(status_code=409, detail=str(e))
-
-        workflow = await db_client.create_workflow(
-            name=workflow_data.get("name", f"{request.use_case} - {request.call_type}"),
-            workflow_definition=workflow_def,
-            user_id=user.id,
-            organization_id=user.selected_organization_id,
-        )
-
-        capture_event(
-            distinct_id=str(user.provider_id),
-            event=PostHogEvent.WORKFLOW_CREATED,
-            properties={
-                "workflow_id": workflow.id,
-                "workflow_name": workflow.name,
-                "source": "template",
-                "call_type": request.call_type,
-                "use_case": request.use_case,
-                "organization_id": user.selected_organization_id,
-            },
-        )
-
-        if trigger_paths:
-            await db_client.sync_triggers_for_workflow(
-                workflow_id=workflow.id,
-                organization_id=user.selected_organization_id,
-                trigger_paths=trigger_paths,
-            )
-
-        return {
-            "id": workflow.id,
-            "name": workflow.name,
-            "status": workflow.status,
-            "created_at": workflow.created_at,
-            "workflow_definition": mask_workflow_definition(workflow_def),
-            "current_definition_id": workflow.current_definition_id,
-            "template_context_variables": workflow.template_context_variables,
-            "call_disposition_codes": workflow.call_disposition_codes,
-            "workflow_configurations": workflow.workflow_configurations,
-        }
-
-    except HTTPException:
-        raise
-    except HTTPStatusError as e:
-        logger.error(f"MPS API error: {e}")
-        raise HTTPException(
-            status_code=e.response.status_code if hasattr(e, "response") else 500,
-            detail=str(e),
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error creating workflow from template: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"An unexpected error occurred: {str(e)}",
-        )
 
 
 class WorkflowSummaryResponse(BaseModel):

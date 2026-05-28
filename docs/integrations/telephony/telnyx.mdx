@@ -66,7 +66,7 @@ Telnyx delivers inbound webhooks at the **Call Control Application** level — t
 1. Go to **Call Control** → **Applications** in the Telnyx Portal
 2. Open the application whose Connection ID you configured in Dograh
 3. In **Webhook Settings**, confirm:
-   - **Webhook URL** is set to: `https://api.dograh.com/api/v1/telephony/inbound/run`
+   - **Webhook URL** is set to: `https://your-backend.example.com/api/v1/telephony/inbound/run`
    - **HTTP Method** is `POST`
 4. Make sure the phone numbers you want to use for inbound are assigned to this application
 
@@ -78,8 +78,7 @@ Telnyx delivers inbound webhooks at the **Call Control Application** level — t
      field is empty, shows a different URL, or Dograh surfaced a sync
      warning on save, the auto-push failed — most often because the API
      Key or Connection ID in Dograh is incorrect. Paste the URL into the
-     field yourself, set the method to `POST`, and save. On self-hosted
-     Dograh, replace `api.dograh.com` with your backend domain.
+     field yourself, set the method to `POST`, and save.
    </Note>
 
 ### Step 3: Verify Setup
@@ -118,7 +117,7 @@ Telnyx delivers inbound webhooks at the **Call Control Application** level — t
 
   <Accordion title="Inbound calls aren't answered">
     - Verify the Call Control Application's webhook URL is set to
-    `https://api.dograh.com/api/v1/telephony/inbound/run` - Ensure the webhook
+    `https://your-backend.example.com/api/v1/telephony/inbound/run` - Ensure the webhook
     URL is publicly accessible from the internet - Confirm the called number
     is assigned to the same Call Control Application whose Connection ID is
     configured in Dograh - Confirm the called number exists in your Dograh

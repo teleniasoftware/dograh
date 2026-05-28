@@ -288,16 +288,6 @@ def test_all_registered_node_models_inherit_base_node_data():
                 "qa_endpoint",
             ],
         ),
-        (
-            "tuner",
-            [
-                "name",
-                "tuner_enabled",
-                "tuner_agent_id",
-                "tuner_workspace_id",
-                "tuner_api_key",
-            ],
-        ),
     ],
 )
 def test_node_spec_property_order_stable(spec_name: str, expected_order: list[str]):

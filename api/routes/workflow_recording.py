@@ -2,10 +2,9 @@
 
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 
-from api.constants import DEPLOYMENT_MODE
 from api.db import db_client
 from api.db.workflow_recording_client import generate_short_id
 from api.enums import StorageBackend
@@ -21,7 +20,6 @@ from api.schemas.workflow_recording import (
 )
 from api.sdk_expose import sdk_expose
 from api.services.auth.depends import get_user
-from api.services.mps_service_key_client import mps_service_key_client
 from api.services.storage import storage_fs
 
 router = APIRouter(prefix="/workflow-recordings", tags=["workflow-recordings"])
@@ -308,41 +306,3 @@ async def update_recording(
             status_code=500, detail="Failed to update recording"
         ) from exc
 
-
-@router.post(
-    "/transcribe",
-    summary="Transcribe an audio file",
-)
-async def transcribe_audio(
-    file: UploadFile = File(...),
-    language: str = Form("en"),
-    user=Depends(get_user),
-):
-    """Transcribe an uploaded audio file using MPS STT."""
-    try:
-        audio_data = await file.read()
-
-        if DEPLOYMENT_MODE == "oss":
-            result = await mps_service_key_client.transcribe_audio(
-                audio_data=audio_data,
-                filename=file.filename or "audio.wav",
-                content_type=file.content_type or "audio/wav",
-                language=language,
-                created_by=str(user.provider_id),
-            )
-        else:
-            result = await mps_service_key_client.transcribe_audio(
-                audio_data=audio_data,
-                filename=file.filename or "audio.wav",
-                content_type=file.content_type or "audio/wav",
-                language=language,
-                organization_id=user.selected_organization_id,
-            )
-
-        return result
-
-    except Exception as exc:
-        logger.error(f"Error transcribing audio: {exc}")
-        raise HTTPException(
-            status_code=500, detail="Failed to transcribe audio"
-        ) from exc

@@ -1,17 +1,13 @@
 from typing import Annotated, Optional
 
-import httpx
 from fastapi import Header, HTTPException, Query, WebSocket
 from loguru import logger
-from pydantic import ValidationError
 
-from api.constants import AUTH_PROVIDER, DOGRAH_MPS_SECRET_KEY, MPS_API_URL
+from api.constants import AUTH_PROVIDER
 from api.db import db_client
 from api.db.models import UserModel
 from api.enums import PostHogEvent
-from api.schemas.user_configuration import UserConfiguration
 from api.services.auth.stack_auth import stackauth
-from api.services.configuration.registry import ServiceProviders
 from api.services.posthog_client import capture_event
 from api.utils.auth import decode_jwt_token
 
@@ -89,7 +85,7 @@ async def get_user(
     try:
         (
             organization,
-            org_was_created,
+            _org_was_created,
         ) = await db_client.get_or_create_organization_by_provider_id(
             org_provider_id=selected_team_id, user_id=user_model.id
         )
@@ -106,19 +102,8 @@ async def get_user(
             # Update the user_model object to reflect the change
             user_model.selected_organization_id = organization.id
 
-            # Only create default configuration if organization was just created
-            # This prevents race conditions where multiple concurrent requests
-            # might try to create configurations
-            if org_was_created:
-                existing_cfg = await db_client.get_user_configurations(user_model.id)
-                if not (existing_cfg.llm or existing_cfg.tts or existing_cfg.stt):
-                    mps_config = await create_user_configuration_with_mps_key(
-                        user_model.id, organization.id, stack_user["id"]
-                    )
-                    if mps_config:
-                        await db_client.update_user_configuration(
-                            user_model.id, mps_config
-                        )
+            # Default model configuration is local/user-managed. Do not call
+            # external Dograh services when a new organization is created.
 
     except Exception as exc:
         raise HTTPException(
@@ -188,88 +173,6 @@ async def _handle_api_key_auth(api_key: str) -> UserModel:
     )
 
     return user
-
-
-async def create_user_configuration_with_mps_key(
-    user_id: int, organization_id: int, user_provider_id: str
-) -> Optional[UserConfiguration]:
-    """Create user configuration using MPS service key.
-
-    Args:
-        user_id: The user's ID
-        organization_id: The organization's ID
-        user_provider_id: The user's provider ID (for created_by field)
-
-    Returns:
-        UserConfiguration with MPS-provided API keys or None if failed
-    """
-
-    async with httpx.AsyncClient() as client:
-        # Use MPS API URL from constants
-        if AUTH_PROVIDER == "local":
-            # For local auth mode, create a temporary service key without authentication
-            response = await client.post(
-                f"{MPS_API_URL}/api/v1/service-keys/",
-                json={
-                    "name": f"Default Dograh Model Service Key",
-                    "description": "Auto-generated key for OSS user",
-                    "expires_in_days": 7,  # Short-lived for OSS
-                    "created_by": user_provider_id,
-                },
-                timeout=10.0,
-            )
-        else:
-            # For authenticated mode, use the secret key and organization ID
-            if not DOGRAH_MPS_SECRET_KEY:
-                logger.warning(
-                    "Warning: DOGRAH_MPS_SECRET_KEY not set for authenticated mode"
-                )
-                raise ValidationError("Missing DOGRAH_MPS_SECRET_KEY in non oss mode")
-
-            response = await client.post(
-                f"{MPS_API_URL}/api/v1/service-keys/",
-                json={
-                    "name": f"Default Dograh Model Service Key",
-                    "description": f"Auto-generated key for organization {organization_id}",
-                    "organization_id": organization_id,
-                    "expires_in_days": 90,  # Longer-lived for authenticated users
-                    "created_by": user_provider_id,
-                },
-                headers={"X-Secret-Key": DOGRAH_MPS_SECRET_KEY},
-                timeout=10.0,
-            )
-
-        if response.status_code == 200:
-            data = response.json()
-            service_key = data.get("service_key")
-
-            if service_key:
-                # Create configuration JSON for storage in database
-                # The service_factory will use this to instantiate actual services
-                configuration = {
-                    "llm": {
-                        "provider": ServiceProviders.DOGRAH.value,
-                        "api_key": [service_key],
-                        "model": "default",
-                    },
-                    "tts": {
-                        "provider": ServiceProviders.DOGRAH.value,
-                        "api_key": [service_key],
-                        "model": "default",
-                        "voice": "default",
-                    },
-                    "stt": {
-                        "provider": ServiceProviders.DOGRAH.value,
-                        "api_key": [service_key],
-                        "model": "default",
-                    },
-                }
-                user_config = UserConfiguration(**configuration)
-                return user_config
-        else:
-            logger.warning(
-                f"Failed to get MPS service key: {response.status_code} - {response.text}"
-            )
 
 
 async def get_superuser(

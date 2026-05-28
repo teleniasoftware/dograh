@@ -19,7 +19,6 @@ from dograh_sdk.typed import (
     Qa,
     StartCall,
     Trigger,
-    Tuner,
     TypedNode,
     Webhook,
 )
@@ -51,7 +50,6 @@ def client() -> _StubClient:
         (Trigger, "trigger"),
         (Webhook, "webhook"),
         (Qa, "qa"),
-        (Tuner, "tuner"),
     ],
     ids=lambda v: v.__name__ if isinstance(v, type) else v,
 )
@@ -72,13 +70,8 @@ def test_typed_class_declares_spec_name(cls: type[TypedNode], expected_type: str
         inst = cls(name="wh")
     elif cls is Qa:
         inst = cls(name="qa")
-    else:  # Tuner
-        inst = cls(
-            name="tuner",
-            tuner_agent_id="agent",
-            tuner_workspace_id=1,
-            tuner_api_key="secret",
-        )
+    else:
+        raise AssertionError(f"Unhandled typed node class: {cls.__name__}")
     assert inst.type == expected_type
 
 

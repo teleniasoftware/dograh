@@ -29,8 +29,7 @@ async def retrieve_from_knowledge_base(
 ) -> Dict[str, Any]:
     """Retrieve relevant information from the knowledge base using vector similarity search.
 
-    Uses OpenAI text-embedding-3-small for embeddings by default. This provides
-    high-quality 1536-dimensional embeddings for accurate retrieval.
+    Uses the configured OpenAI-compatible embedding provider.
 
     This function includes OpenTelemetry tracing for Langfuse observability.
 
@@ -189,6 +188,7 @@ async def retrieve_from_knowledge_base(
             limit,
             embeddings_api_key,
             embeddings_model,
+            embeddings_base_url,
         )
 
 
@@ -234,10 +234,10 @@ async def _perform_retrieval(
 
         # Perform vector similarity search on chunked documents
         if chunked_uuids is None or len(chunked_uuids) > 0:
-            if not embeddings_api_key:
+            if not embeddings_api_key and not embeddings_base_url:
                 raise ValueError(
-                    "Embeddings API key not configured. Please set your API key in "
-                    "Model Configurations > Embedding."
+                    "Embeddings provider not configured. Please set an API key or "
+                    "local base URL in Model Configurations > Embedding."
                 )
 
             embedding_service = OpenAIEmbeddingService(

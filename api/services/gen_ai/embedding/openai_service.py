@@ -49,9 +49,10 @@ class OpenAIEmbeddingService(BaseEmbeddingService):
         self.db = db_client
         self.model_id = model_id
 
-        self._api_key_configured = bool(api_key)
+        effective_api_key = api_key or ("none" if base_url else None)
+        self._api_key_configured = bool(effective_api_key)
         if self._api_key_configured:
-            client_kwargs = {"api_key": api_key}
+            client_kwargs = {"api_key": effective_api_key}
             if base_url:
                 validate_user_configured_service_url(
                     base_url,

@@ -107,7 +107,7 @@ async def process_document(
     The document status will be updated from 'pending' -> 'processing' -> 'completed' or 'failed'.
 
     Embedding:
-    Uses OpenAI text-embedding-3-small (1536-dimensional embeddings, requires API key configured in Model Configurations).
+    Uses the embedding model configured in Model Configurations.
 
     Access Control:
     * Users can only process documents in their organization.
@@ -143,7 +143,7 @@ async def process_document(
 
         logger.info(
             f"Created document {request.document_uuid} (id={document.id}) and enqueued processing "
-            f"with OpenAI embeddings, org {user.selected_organization_id}"
+            f"with configured embeddings, org {user.selected_organization_id}"
         )
 
         capture_event(

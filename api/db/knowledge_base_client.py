@@ -278,6 +278,29 @@ class KnowledgeBaseClient(BaseDBClient):
             logger.info(f"Updated document {document_id} status to {status}")
             return document
 
+    async def update_document_full_text(
+        self,
+        document_id: int,
+        full_text: str,
+    ) -> Optional[KnowledgeBaseDocumentModel]:
+        """Persist extracted full text for full-document retrieval mode."""
+        async with self.async_session() as session:
+            query = select(KnowledgeBaseDocumentModel).where(
+                KnowledgeBaseDocumentModel.id == document_id
+            )
+            result = await session.execute(query)
+            document = result.scalar_one_or_none()
+
+            if not document:
+                return None
+
+            document.full_text = full_text
+            await session.commit()
+            await session.refresh(document)
+
+            logger.info(f"Updated document {document_id} full text")
+            return document
+
     async def create_chunks_batch(
         self,
         chunks: List[KnowledgeBaseChunkModel],

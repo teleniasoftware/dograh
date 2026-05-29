@@ -1220,8 +1220,37 @@ class OpenRouterEmbeddingsConfiguration(BaseEmbeddingsConfiguration):
     )
 
 
+SPEACHES_EMBEDDING_MODELS = ["text-embedding-3-small", "nomic-embed-text", "bge-m3"]
+
+
+@register_embeddings
+class SpeachesEmbeddingsConfiguration(BaseEmbeddingsConfiguration):
+    model_config = SPEACHES_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.SPEACHES] = ServiceProviders.SPEACHES
+    model: str = Field(
+        default="text-embedding-3-small",
+        description="Embedding model name as exposed by your OpenAI-compatible server.",
+        json_schema_extra={
+            "examples": SPEACHES_EMBEDDING_MODELS,
+            "allow_custom_input": True,
+        },
+    )
+    base_url: str = Field(
+        default="http://localhost:11434/v1",
+        description="OpenAI-compatible embeddings endpoint (Ollama, vLLM, etc.).",
+    )
+    api_key: str | list[str] | None = Field(
+        default=None,
+        description="Usually not required for self-hosted endpoints. Leave blank unless your server enforces one.",
+    )
+
+
 EmbeddingsConfig = Annotated[
-    Union[OpenAIEmbeddingsConfiguration, OpenRouterEmbeddingsConfiguration],
+    Union[
+        OpenAIEmbeddingsConfiguration,
+        OpenRouterEmbeddingsConfiguration,
+        SpeachesEmbeddingsConfiguration,
+    ],
     Field(discriminator="provider"),
 ]
 

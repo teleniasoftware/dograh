@@ -22,5 +22,8 @@ STT_PRICING: Dict[str, Dict[str, TimePricingModel]] = {
         "gpt-4o-transcribe": TimePricingModel(Decimal("0.015") / 60),
         "default": TimePricingModel(Decimal("0.015") / 60),
     },
+    ServiceProviders.FASTWEB: {
+        "default": TimePricingModel(Decimal("0.0")),  # Pre-authenticated endpoint — no per-second cost
+    },
     "default": {"default": TimePricingModel(Decimal("0.0077") / 60)},
 }

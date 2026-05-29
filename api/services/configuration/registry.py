@@ -28,8 +28,12 @@ from api.services.configuration.options import (
     SARVAM_V3_VOICES,
     SPEECHMATICS_STT_LANGUAGES,
 )
+from api.services.configuration.options.fastweb import (
+    FASTWEB_KOKORO_TTS_LANGUAGES,
+    FASTWEB_KOKORO_TTS_VOICES,
+    FASTWEB_STT_LANGUAGES,
+)
 from api.services.configuration.options.google import GOOGLE_VERTEX_MODELS
-
 
 class ServiceType(Enum):
     LLM = auto()
@@ -64,6 +68,7 @@ class ServiceProviders(str, Enum):
     ULTRAVOX_REALTIME = "ultravox_realtime"
     GOOGLE_REALTIME = "google_realtime"
     GOOGLE_VERTEX_REALTIME = "google_vertex_realtime"
+    FASTWEB = "fastweb"
 
 
 class BaseServiceConfiguration(BaseModel):
@@ -87,6 +92,7 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.ULTRAVOX_REALTIME,
         ServiceProviders.GOOGLE_REALTIME,
         ServiceProviders.GOOGLE_VERTEX_REALTIME,
+        ServiceProviders.FASTWEB,
         # ServiceProviders.SARVAM,
     ]
     api_key: str | list[str]
@@ -226,6 +232,7 @@ CAMB_PROVIDER_MODEL_CONFIG = provider_model_config("Camb.ai")
 RIME_PROVIDER_MODEL_CONFIG = provider_model_config("Rime")
 GOOGLE_CLOUD_PROVIDER_MODEL_CONFIG = provider_model_config("Google Cloud")
 SPEECHMATICS_PROVIDER_MODEL_CONFIG = provider_model_config("Speechmatics")
+FASTWEB_PROVIDER_MODEL_CONFIG = provider_model_config("FastWeb AI Factory")
 ASSEMBLYAI_PROVIDER_MODEL_CONFIG = provider_model_config("AssemblyAI")
 GLADIA_PROVIDER_MODEL_CONFIG = provider_model_config("Gladia")
 SPEACHES_PROVIDER_MODEL_CONFIG = provider_model_config(
@@ -958,6 +965,29 @@ class MiniMaxTTSConfiguration(BaseTTSConfiguration):
     )
 
 
+@register_tts
+class FastwebKokoroTTSConfiguration(BaseTTSConfiguration):
+    model_config = FASTWEB_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.FASTWEB] = ServiceProviders.FASTWEB
+    model: str = Field(
+        default="kokoro-82m",
+        description="FastWeb Kokoro TTS model.",
+    )
+    voice: str = Field(
+        default="im_nicola",
+        description="Kokoro voice ID.",
+        json_schema_extra={"examples": FASTWEB_KOKORO_TTS_VOICES, "allow_custom_input": True},
+    )
+    language: str = Field(
+        default="i",
+        description="Language code for synthesis (i=Italian, a=American EN, b=British EN).",
+        json_schema_extra={"examples": FASTWEB_KOKORO_TTS_LANGUAGES},
+    )
+    speed: float = Field(
+        default=1.0, ge=0.5, le=2.0, description="Speech speed multiplier."
+    )
+
+
 TTSConfig = Annotated[
     Union[
         DeepgramTTSConfiguration,
@@ -970,6 +1000,7 @@ TTSConfig = Annotated[
         RimeTTSConfiguration,
         SpeachesTTSConfiguration,
         MiniMaxTTSConfiguration,
+        FastwebKokoroTTSConfiguration,
     ],
     Field(discriminator="provider"),
 ]
@@ -1170,6 +1201,25 @@ class GladiaSTTConfiguration(BaseSTTConfiguration):
     )
 
 
+@register_stt
+class FastwebSTTConfiguration(BaseSTTConfiguration):
+    model_config = FASTWEB_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.FASTWEB] = ServiceProviders.FASTWEB
+    model: str = Field(
+        default="default",
+        description="FastWeb STT model.",
+    )
+    language: str = Field(
+        default="it",
+        description="Language code for speech recognition.",
+        json_schema_extra={"examples": FASTWEB_STT_LANGUAGES},
+    )
+    api_key: str | list[str] | None = Field(
+        default=None,
+        description="Not required for FastWeb STT (pre-authenticated endpoint). Leave blank.",
+    )
+
+
 STTConfig = Annotated[
     Union[
         DeepgramSTTConfiguration,
@@ -1181,6 +1231,7 @@ STTConfig = Annotated[
         SpeachesSTTConfiguration,
         AssemblyAISTTConfiguration,
         GladiaSTTConfiguration,
+        FastwebSTTConfiguration,
     ],
     Field(discriminator="provider"),
 ]

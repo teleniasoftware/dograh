@@ -26,5 +26,9 @@ TTS_PRICING: Dict[str, Dict[str, CharacterPricingModel]] = {
         # 6400 usd per 250*1e6 characters
         "default": CharacterPricingModel(Decimal("0.0256") / 1_000)
     },
+    ServiceProviders.FASTWEB: {
+        "kokoro-82m": CharacterPricingModel(Decimal("0.0")),  # FastWeb-hosted Kokoro — pricing TBD
+        "default": CharacterPricingModel(Decimal("0.0")),
+    },
     "default": {"default": CharacterPricingModel(Decimal("0.030") / 1_000)},
 }

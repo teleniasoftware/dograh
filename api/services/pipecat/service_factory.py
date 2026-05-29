@@ -23,6 +23,8 @@ from pipecat.services.deepgram.flux.stt import (
 from pipecat.services.deepgram.stt import DeepgramSTTService, DeepgramSTTSettings
 from pipecat.services.deepgram.tts import DeepgramTTSService, DeepgramTTSSettings
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService, ElevenLabsTTSSettings
+from pipecat.services.fastweb.stt import FastwebSTTService
+from pipecat.services.fastweb.tts import FastwebKokoroTTSService, FastwebKokoroTTSSettings
 from pipecat.services.gladia.stt import GladiaSTTService, GladiaSTTSettings
 from pipecat.services.google.llm import GoogleLLMService, GoogleLLMSettings
 from pipecat.services.google.stt import GoogleSTTService, GoogleSTTSettings
@@ -227,6 +229,12 @@ def create_stt_service(
                 operating_point=operating_point,
                 additional_vocab=additional_vocab,
             ),
+            sample_rate=audio_config.transport_in_sample_rate,
+        )
+    elif user_config.stt.provider == ServiceProviders.FASTWEB.value:
+        language = getattr(user_config.stt, "language", None) or "it"
+        return FastwebSTTService(
+            language=language,
             sample_rate=audio_config.transport_in_sample_rate,
         )
     else:
@@ -454,6 +462,21 @@ def create_tts_service(user_config, audio_config: "AudioConfig"):
             settings=MiniMaxTTSSettings(
                 model=user_config.tts.model,
                 voice=voice,
+                speed=speed,
+            ),
+            text_filters=[xml_function_tag_filter],
+            skip_aggregator_types=["recording_router", "recording"],
+            silence_time_s=1.0,
+        )
+    elif user_config.tts.provider == ServiceProviders.FASTWEB.value:
+        voice = getattr(user_config.tts, "voice", None) or "im_nicola"
+        language = getattr(user_config.tts, "language", None) or "i"
+        speed = getattr(user_config.tts, "speed", None) or 1.0
+        return FastwebKokoroTTSService(
+            api_key=user_config.tts.api_key,
+            settings=FastwebKokoroTTSSettings(
+                voice=voice,
+                language=language,
                 speed=speed,
             ),
             text_filters=[xml_function_tag_filter],

@@ -18,24 +18,57 @@ CHUNK_OVERLAP_TOKENS = 32
 CONTEXTUALIZATION_TIMEOUT_SECONDS = 20.0
 
 
-def _extract_text_from_file(file_path: str) -> tuple[str, dict[str, Any]]:
-    """Extract text from locally downloaded files without external services."""
-    with open(file_path, "rb") as file:
-        raw_content = file.read()
+_TEXT_EXTENSIONS = frozenset({".txt", ".md", ".csv", ".json", ".html", ".xml", ".yaml", ".yml", ".log", ".py", ".js", ".ts", ".css"})
 
-    for encoding in ("utf-8", "utf-8-sig", "latin-1"):
-        try:
-            text = raw_content.decode(encoding)
-            break
-        except UnicodeDecodeError:
-            continue
+
+def _extract_text_from_file(file_path: str) -> tuple[str, dict[str, Any]]:
+    """Extract text from locally downloaded files using format-specific parsers."""
+    ext = os.path.splitext(file_path)[1].lower()
+
+    if ext == ".pdf":
+        import pdfplumber
+
+        with pdfplumber.open(file_path) as pdf:
+            pages = []
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    pages.append(page_text)
+            text = "\n".join(pages)
+        extraction_method = "pdfplumber"
+
+    elif ext == ".docx":
+        from docx import Document
+
+        doc = Document(file_path)
+        paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+        text = "\n".join(paragraphs)
+        extraction_method = "python-docx"
+
+    elif ext in _TEXT_EXTENSIONS:
+        with open(file_path, "rb") as file:
+            raw_content = file.read()
+
+        for encoding in ("utf-8", "utf-8-sig", "latin-1"):
+            try:
+                text = raw_content.decode(encoding)
+                break
+            except UnicodeDecodeError:
+                continue
+        else:
+            text = raw_content.decode("utf-8", errors="ignore")
+        extraction_method = "direct_text_decode"
+
     else:
-        text = raw_content.decode("utf-8", errors="ignore")
+        raise ValueError(
+            f"Unsupported file type '{ext}'. Supported formats: PDF, DOCX, "
+            f"and text files ({', '.join(sorted(_TEXT_EXTENSIONS))})."
+        )
 
     text = "\n".join(line.strip() for line in text.splitlines() if line.strip())
     metadata = {
         "processor": "local",
-        "extraction": "direct_text_decode",
+        "extraction": extraction_method,
         "characters": len(text),
     }
     return text, metadata
@@ -309,9 +342,10 @@ async def process_knowledge_base_document(
         logger.info(f"Document {document_id} processed with {len(chunk_models)} chunks")
 
     except Exception as e:
-        logger.error(
-            f"Error processing knowledge base document {document_id}: {e}",
-            exc_info=True,
+        logger.opt(exception=True).error(
+            "Error processing knowledge base document {}: {}",
+            document_id,
+            str(e),
         )
         await db_client.update_document_status(
             document_id, "failed", error_message=str(e)
@@ -322,6 +356,10 @@ async def process_knowledge_base_document(
         if temp_file_path and os.path.exists(temp_file_path):
             try:
                 os.remove(temp_file_path)
-                logger.debug(f"Cleaned up temp file: {temp_file_path}")
-            except Exception as e:
-                logger.warning(f"Failed to clean up temp file {temp_file_path}: {e}")
+                logger.debug("Cleaned up temp file: {}", temp_file_path)
+            except Exception as cleanup_error:
+                logger.warning(
+                    "Failed to clean up temp file {}: {}",
+                    temp_file_path,
+                    str(cleanup_error),
+                )

@@ -47,8 +47,8 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
       MINIO_API_CORS_ALLOW_ORIGIN: "*"
     ports:
-      - "http://localhost:9000:9000" # Bind to localhost explicitly
-      - "http://localhost:9001:9001"
+      - "9000:9000" # Bind to localhost explicitly
+      - "9001:9001"
     volumes:
       - minio-data:/data
     healthcheck:

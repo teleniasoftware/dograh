@@ -976,7 +976,10 @@ class FastwebKokoroTTSConfiguration(BaseTTSConfiguration):
     voice: str = Field(
         default="im_nicola",
         description="Kokoro voice ID.",
-        json_schema_extra={"examples": FASTWEB_KOKORO_TTS_VOICES, "allow_custom_input": True},
+        json_schema_extra={
+            "examples": FASTWEB_KOKORO_TTS_VOICES,
+            "allow_custom_input": True,
+        },
     )
     language: str = Field(
         default="i",
@@ -985,6 +988,10 @@ class FastwebKokoroTTSConfiguration(BaseTTSConfiguration):
     )
     speed: float = Field(
         default=1.0, ge=0.5, le=2.0, description="Speech speed multiplier."
+    )
+    base_url: str | None = Field(
+        default=None,
+        description="Custom FastWeb WebSocket base URL. Overrides the default endpoint.",
     )
 
 
@@ -1213,6 +1220,10 @@ class FastwebSTTConfiguration(BaseSTTConfiguration):
         default="it",
         description="Language code for speech recognition.",
         json_schema_extra={"examples": FASTWEB_STT_LANGUAGES},
+    )
+    base_url: str | None = Field(
+        default=None,
+        description="Custom FastWeb WebSocket base URL. Overrides the default endpoint.",
     )
     api_key: str | list[str] | None = Field(
         default=None,

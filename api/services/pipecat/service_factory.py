@@ -24,7 +24,10 @@ from pipecat.services.deepgram.stt import DeepgramSTTService, DeepgramSTTSetting
 from pipecat.services.deepgram.tts import DeepgramTTSService, DeepgramTTSSettings
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService, ElevenLabsTTSSettings
 from pipecat.services.fastweb.stt import FastwebSTTService
-from pipecat.services.fastweb.tts import FastwebKokoroTTSService, FastwebKokoroTTSSettings
+from pipecat.services.fastweb.tts import (
+    FastwebKokoroTTSService,
+    FastwebKokoroTTSSettings,
+)
 from pipecat.services.gladia.stt import GladiaSTTService, GladiaSTTSettings
 from pipecat.services.google.llm import GoogleLLMService, GoogleLLMSettings
 from pipecat.services.google.stt import GoogleSTTService, GoogleSTTSettings
@@ -233,7 +236,13 @@ def create_stt_service(
         )
     elif user_config.stt.provider == ServiceProviders.FASTWEB.value:
         language = getattr(user_config.stt, "language", None) or "it"
+        base_url = getattr(user_config.stt, "base_url", None)
+        if not base_url:
+            raise HTTPException(
+                status_code=400, detail="base_url is required for FastWeb STT provider"
+            )
         return FastwebSTTService(
+            base_url=base_url,
             language=language,
             sample_rate=audio_config.transport_in_sample_rate,
         )
@@ -472,8 +481,14 @@ def create_tts_service(user_config, audio_config: "AudioConfig"):
         voice = getattr(user_config.tts, "voice", None) or "im_nicola"
         language = getattr(user_config.tts, "language", None) or "i"
         speed = getattr(user_config.tts, "speed", None) or 1.0
+        base_url = getattr(user_config.tts, "base_url", None)
+        if not base_url:
+            raise HTTPException(
+                status_code=400, detail="base_url is required for FastWeb TTS provider"
+            )
         return FastwebKokoroTTSService(
             api_key=user_config.tts.api_key,
+            base_url=base_url,
             settings=FastwebKokoroTTSSettings(
                 voice=voice,
                 language=language,

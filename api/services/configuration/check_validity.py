@@ -142,7 +142,6 @@ class UserConfigurationValidator:
                     }
                 ]
             return []
-
         # Vertex Realtime uses service-account credentials (or ADC) instead of api_key
         if provider == ServiceProviders.GOOGLE_VERTEX_REALTIME.value:
             try:

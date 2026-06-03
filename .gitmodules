@@ -1,3 +1,4 @@
 [submodule "pipecat"]
 	path = pipecat
-	url = https://github.com/pipecat-ai/pipecat.git
+	url = https://gitlab.teleniasoftware.com/telenia-software/red/tvox-mt/container/pipecat.git
+	branch = inser_PR_google_integration

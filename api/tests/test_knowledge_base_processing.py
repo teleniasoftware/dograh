@@ -7,20 +7,20 @@ from api.services.configuration.registry import ServiceProviders
 from api.tasks import knowledge_base_processing
 
 
-def test_user_configuration_accepts_speaches_embeddings():
+def test_user_configuration_accepts_openai_compatible_embeddings():
     config = UserConfiguration.model_validate(
         {
             "embeddings": {
-                "provider": ServiceProviders.SPEACHES.value,
+                "provider": ServiceProviders.OPENROUTER.value,
                 "model": "text-embedding-3-small",
                 "base_url": "http://localhost:11434/v1",
-                "api_key": None,
+                "api_key": "test-key",
             }
         }
     )
 
     assert config.embeddings is not None
-    assert config.embeddings.provider == ServiceProviders.SPEACHES
+    assert config.embeddings.provider == ServiceProviders.OPENROUTER
     assert config.embeddings.base_url == "http://localhost:11434/v1"
 
 
@@ -32,10 +32,10 @@ async def test_process_knowledge_base_document_uses_local_processing(monkeypatch
     user_config = UserConfiguration.model_validate(
         {
             "embeddings": {
-                "provider": ServiceProviders.SPEACHES.value,
+                "provider": ServiceProviders.OPENROUTER.value,
                 "model": "text-embedding-3-small",
                 "base_url": "http://localhost:11434/v1",
-                "api_key": None,
+                "api_key": "test-key",
             }
         }
     )
@@ -75,7 +75,7 @@ async def test_process_knowledge_base_document_uses_local_processing(monkeypatch
 
     class FakeEmbeddingService:
         def __init__(self, **kwargs):
-            assert kwargs["api_key"] is None
+            assert kwargs["api_key"] == "test-key"
             assert kwargs["base_url"] == "http://localhost:11434/v1"
             assert kwargs["model_id"] == "text-embedding-3-small"
 

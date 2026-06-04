@@ -282,7 +282,7 @@ async def _execute_resolved_target(
 
     # 10. Initiate call via telephony provider. workflow_id and user_id are
     # required by providers that build the media WebSocket URL at dial time
-    # (e.g. Telnyx, Cloudonix); without them the URL contains "None/None" and
+    # (e.g. Telnyx); without them the URL contains "None/None" and
     # the stream connection fails.
     try:
         await provider.initiate_call(

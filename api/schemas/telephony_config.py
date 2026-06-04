@@ -16,10 +16,6 @@ from api.services.telephony.providers.ari.config import (
     ARIConfigurationRequest,
     ARIConfigurationResponse,
 )
-from api.services.telephony.providers.cloudonix.config import (
-    CloudonixConfigurationRequest,
-    CloudonixConfigurationResponse,
-)
 from api.services.telephony.providers.plivo.config import (
     PlivoConfigurationRequest,
     PlivoConfigurationResponse,
@@ -37,10 +33,6 @@ from api.services.telephony.providers.twilio.config import (
     TwilioConfigurationRequest,
     TwilioConfigurationResponse,
 )
-from api.services.telephony.providers.vobiz.config import (
-    VobizConfigurationRequest,
-    VobizConfigurationResponse,
-)
 from api.services.telephony.providers.vonage.config import (
     VonageConfigurationRequest,
     VonageConfigurationResponse,
@@ -49,12 +41,10 @@ from api.services.telephony.providers.vonage.config import (
 TelephonyConfigRequest = Annotated[
     Union[
         ARIConfigurationRequest,
-        CloudonixConfigurationRequest,
         PlivoConfigurationRequest,
         SIPConfigurationRequest,
         TelnyxConfigurationRequest,
         TwilioConfigurationRequest,
-        VobizConfigurationRequest,
         VonageConfigurationRequest,
     ],
     Field(discriminator="provider"),
@@ -72,8 +62,6 @@ class TelephonyConfigurationResponse(BaseModel):
     twilio: Optional[TwilioConfigurationResponse] = None
     plivo: Optional[PlivoConfigurationResponse] = None
     vonage: Optional[VonageConfigurationResponse] = None
-    vobiz: Optional[VobizConfigurationResponse] = None
-    cloudonix: Optional[CloudonixConfigurationResponse] = None
     ari: Optional[ARIConfigurationResponse] = None
     telnyx: Optional[TelnyxConfigurationResponse] = None
     sip: Optional[SIPConfigurationResponse] = None
@@ -138,8 +126,6 @@ class TelephonyConfigurationListResponse(BaseModel):
 __all__ = [
     "ARIConfigurationRequest",
     "ARIConfigurationResponse",
-    "CloudonixConfigurationRequest",
-    "CloudonixConfigurationResponse",
     "PlivoConfigurationRequest",
     "PlivoConfigurationResponse",
     "SIPConfigurationRequest",
@@ -150,8 +136,6 @@ __all__ = [
     "TelnyxConfigurationResponse",
     "TwilioConfigurationRequest",
     "TwilioConfigurationResponse",
-    "VobizConfigurationRequest",
-    "VobizConfigurationResponse",
     "VonageConfigurationRequest",
     "VonageConfigurationResponse",
 ]

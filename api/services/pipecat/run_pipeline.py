@@ -61,7 +61,7 @@ from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnal
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams
 from pipecat.extensions.voicemail.voicemail_detector import VoicemailDetector
-from pipecat.pipeline.base_task import PipelineTaskParams
+from pipecat.pipeline.task import PipelineTaskParams
 from pipecat.processors.aggregators.llm_response_universal import (
     LLMAssistantAggregatorParams,
     LLMContextAggregatorPair,

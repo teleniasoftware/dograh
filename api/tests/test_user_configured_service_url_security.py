@@ -4,10 +4,7 @@ import pytest
 from fastapi import HTTPException
 
 from api.services.configuration.check_validity import UserConfigurationValidator
-from api.services.configuration.registry import (
-    ServiceProviders,
-    SpeachesLLMConfiguration,
-)
+from api.services.configuration.registry import ServiceProviders
 from api.services.gen_ai.embedding.openai_service import OpenAIEmbeddingService
 from api.services.pipecat.service_factory import (
     create_llm_service_from_provider,
@@ -108,21 +105,6 @@ def test_saas_blocks_local_websocket_service_url(monkeypatch):
         )
 
 
-def test_validator_blocks_speaches_local_base_url_in_saas(monkeypatch):
-    monkeypatch.setattr("api.utils.url_security.DEPLOYMENT_MODE", "saas")
-    validator = UserConfigurationValidator()
-    config = SpeachesLLMConfiguration()
-
-    result = validator._validate_service(config, "llm")
-
-    assert result == [
-        {
-            "model": "llm",
-            "message": "base_url cannot point to localhost in SaaS mode",
-        }
-    ]
-
-
 def test_validator_blocks_azure_private_endpoint_in_saas(monkeypatch):
     monkeypatch.setattr("api.utils.url_security.DEPLOYMENT_MODE", "saas")
     validator = UserConfigurationValidator()
@@ -140,28 +122,6 @@ def test_validator_blocks_azure_private_endpoint_in_saas(monkeypatch):
             "message": "endpoint must resolve to a public IP address in SaaS mode",
         }
     ]
-
-
-def test_validator_allows_speaches_local_base_url_in_oss(monkeypatch):
-    monkeypatch.setattr("api.utils.url_security.DEPLOYMENT_MODE", "oss")
-    validator = UserConfigurationValidator()
-    config = SpeachesLLMConfiguration()
-
-    assert validator._validate_service(config, "llm") == []
-
-
-def test_runtime_blocks_speaches_default_llm_base_url_in_saas(monkeypatch):
-    monkeypatch.setattr("api.utils.url_security.DEPLOYMENT_MODE", "saas")
-
-    with pytest.raises(HTTPException) as exc_info:
-        create_llm_service_from_provider(
-            provider=ServiceProviders.SPEACHES.value,
-            model="llama3",
-            api_key=None,
-        )
-
-    assert exc_info.value.status_code == 400
-    assert "localhost" in exc_info.value.detail
 
 
 def test_runtime_blocks_openai_private_base_url_in_saas(monkeypatch):

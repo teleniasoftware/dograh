@@ -300,11 +300,9 @@ Add one import line to `api/services/telephony/providers/__init__.py`:
 ```python
 from api.services.telephony.providers import (  # noqa: F401  -- side effects
     ari,
-    cloudonix,
     plivo,
     telnyx,
     twilio,
-    vobiz,
     vonage,
     your_provider,        # ← add this
 )
@@ -387,7 +385,6 @@ For end-to-end testing, save your provider through the telephony-configurations 
 | `providers/twilio/` | Full-featured: outbound, inbound, conference transfers, status callbacks, custom strategies |
 | `providers/plivo/` | Recently-added reference; mirrors Twilio's shape with multi-callback signatures |
 | `providers/vonage/` | JWT auth, 16 kHz Linear PCM, NCCO responses |
-| `providers/cloudonix/` | SIP-based, custom call strategies |
 | `providers/telnyx/` | Call-control style: REST-driven inbound answer flow rather than markup response |
 | `providers/ari/` | Minimal example — no `routes.py`, no inbound webhook verification, WebSocket-only |
 

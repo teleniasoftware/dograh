@@ -70,16 +70,12 @@ class TestServiceFactoryCamb:
     def test_create_tts_service_camb(self):
         import sys
 
-        # Mock missing modules (custom pipecat fork, not in public pipecat-ai)
-        dograh_modules = [
-            "pipecat.services.dograh",
-            "pipecat.services.dograh.llm",
-            "pipecat.services.dograh.stt",
-            "pipecat.services.dograh.tts",
+        # Mock missing utility modules from the custom pipecat fork.
+        custom_modules = [
             "pipecat.utils.text.xml_function_tag_filter",
         ]
         mocks = {}
-        for mod in dograh_modules:
+        for mod in custom_modules:
             if mod not in sys.modules:
                 mocks[mod] = MagicMock()
 

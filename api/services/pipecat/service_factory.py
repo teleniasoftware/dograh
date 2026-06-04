@@ -37,7 +37,6 @@ from pipecat.services.google.vertex.llm import (
     GoogleVertexLLMSettings,
 )
 from pipecat.services.groq.llm import GroqLLMService, GroqLLMSettings
-from pipecat.services.minimax.llm import MiniMaxLLMService
 from pipecat.services.minimax.tts import MiniMaxTTSSettings
 from pipecat.services.openai.base_llm import OpenAILLMSettings
 from pipecat.services.openai.llm import OpenAILLMService
@@ -50,9 +49,6 @@ from pipecat.services.openrouter.llm import OpenRouterLLMService, OpenRouterLLMS
 from pipecat.services.rime.tts import RimeTTSService, RimeTTSSettings
 from pipecat.services.sarvam.stt import SarvamSTTService, SarvamSTTSettings
 from pipecat.services.sarvam.tts import SarvamTTSService, SarvamTTSSettings
-from pipecat.services.speaches.llm import SpeachesLLMService, SpeachesLLMSettings
-from pipecat.services.speaches.stt import SpeachesSTTService, SpeachesSTTSettings
-from pipecat.services.speaches.tts import SpeachesTTSService, SpeachesTTSSettings
 from pipecat.services.speechmatics.stt import (
     SpeechmaticsSTTService,
     SpeechmaticsSTTSettings,
@@ -168,18 +164,6 @@ def create_stt_service(
             settings=SarvamSTTSettings(
                 model=user_config.stt.model,
                 language=pipecat_language,
-            ),
-            sample_rate=audio_config.transport_in_sample_rate,
-        )
-    elif user_config.stt.provider == ServiceProviders.SPEACHES.value:
-        language = getattr(user_config.stt, "language", None)
-        _validate_runtime_service_url(user_config.stt.base_url, "base_url")
-        return SpeachesSTTService(
-            base_url=user_config.stt.base_url,
-            api_key=user_config.stt.api_key or "none",
-            settings=SpeachesSTTSettings(
-                model=user_config.stt.model,
-                language=language,
             ),
             sample_rate=audio_config.transport_in_sample_rate,
         )
@@ -373,20 +357,6 @@ def create_tts_service(user_config, audio_config: "AudioConfig"):
         # Set language directly as BCP-47 code (bypasses Language enum conversion)
         tts._settings.language = language
         return tts
-    elif user_config.tts.provider == ServiceProviders.SPEACHES.value:
-        _validate_runtime_service_url(user_config.tts.base_url, "base_url")
-        return SpeachesTTSService(
-            base_url=user_config.tts.base_url,
-            api_key=user_config.tts.api_key or "none",
-            settings=SpeachesTTSSettings(
-                model=user_config.tts.model,
-                voice=user_config.tts.voice,
-                speed=user_config.tts.speed,
-            ),
-            text_filters=[xml_function_tag_filter],
-            skip_aggregator_types=["recording_router", "recording"],
-            silence_time_s=1.0,
-        )
     elif user_config.tts.provider == ServiceProviders.RIME.value:
         speed = getattr(user_config.tts, "speed", None)
         language_code = getattr(user_config.tts, "language", None) or "en"
@@ -585,25 +555,6 @@ def create_llm_service_from_provider(
             aws_region=aws_region,
             settings=AWSBedrockLLMSettings(model=model),
         )
-    elif provider == ServiceProviders.SPEACHES.value:
-        base_url = base_url or "http://localhost:11434/v1"
-        _validate_runtime_service_url(base_url, "base_url")
-        return SpeachesLLMService(
-            base_url=base_url,
-            api_key=api_key or "none",
-            settings=SpeachesLLMSettings(model=model),
-        )
-    elif provider == ServiceProviders.MINIMAX.value:
-        base_url = base_url or "https://api.minimax.io/v1"
-        _validate_runtime_service_url(base_url, "base_url")
-        return MiniMaxLLMService(
-            api_key=api_key,
-            base_url=base_url,
-            settings=MiniMaxLLMService.Settings(
-                model=model,
-                temperature=temperature if temperature is not None else 1.0,
-            ),
-        )
     else:
         raise HTTPException(status_code=400, detail=f"Invalid LLM provider {provider}")
 
@@ -743,8 +694,6 @@ def create_llm_service(user_config):
         kwargs["base_url"] = user_config.llm.base_url
     elif provider == ServiceProviders.AZURE.value:
         kwargs["endpoint"] = user_config.llm.endpoint
-    elif provider == ServiceProviders.SPEACHES.value:
-        kwargs["base_url"] = user_config.llm.base_url
     elif provider == ServiceProviders.AWS_BEDROCK.value:
         kwargs["aws_access_key"] = user_config.llm.aws_access_key
         kwargs["aws_secret_key"] = user_config.llm.aws_secret_key
@@ -753,8 +702,5 @@ def create_llm_service(user_config):
         kwargs["project_id"] = user_config.llm.project_id
         kwargs["location"] = user_config.llm.location
         kwargs["credentials"] = user_config.llm.credentials
-    elif provider == ServiceProviders.MINIMAX.value:
-        kwargs["base_url"] = user_config.llm.base_url
-        kwargs["temperature"] = user_config.llm.temperature
 
     return create_llm_service_from_provider(provider, model, api_key, **kwargs)

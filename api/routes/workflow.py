@@ -13,7 +13,7 @@ from api.db import db_client
 from api.db.agent_trigger_client import TriggerPathConflictError
 from api.db.models import UserModel
 from api.db.workflow_template_client import WorkflowTemplateClient
-from api.enums import CallType, PostHogEvent, StorageBackend
+from api.enums import PostHogEvent, StorageBackend
 from api.schemas.workflow import WorkflowRunResponseSchema
 from api.sdk_expose import sdk_expose
 from api.services.auth.depends import get_user
@@ -468,8 +468,6 @@ async def create_workflow_from_template(
             kwargs["base_url"] = llm_config["base_url"]
         elif provider == "openai" and llm_config.get("base_url"):
             kwargs["base_url"] = llm_config["base_url"]
-        elif provider == "speaches" and llm_config.get("base_url"):
-            kwargs["base_url"] = llm_config["base_url"]
         elif provider == "aws_bedrock":
             kwargs["aws_access_key"] = llm_config.get("aws_access_key", "")
             kwargs["aws_secret_key"] = llm_config.get("aws_secret_key", "")
@@ -478,9 +476,6 @@ async def create_workflow_from_template(
             kwargs["project_id"] = llm_config.get("project_id", "")
             kwargs["location"] = llm_config.get("location", "")
             kwargs["credentials"] = llm_config.get("credentials", "")
-        elif provider == "minimax":
-            kwargs["base_url"] = llm_config.get("base_url", "")
-            kwargs["temperature"] = llm_config.get("temperature", 1.0)
 
         # Create LLM service
         llm = create_llm_service_from_provider(provider, model, api_key, **kwargs)
@@ -492,7 +487,7 @@ async def create_workflow_from_template(
             else "outbound (the bot places outgoing calls)"
         )
 
-        system_prompt = f"""\
+        system_prompt = """\
 You are a voice AI workflow designer. Generate a complete workflow definition
 for a Dograh voice agent as a JSON object.
 

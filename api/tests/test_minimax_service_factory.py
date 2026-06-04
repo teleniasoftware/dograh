@@ -1,37 +1,11 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from pipecat.services.minimax.llm import MiniMaxLLMService as RealMiniMaxLLMService
-
 from api.services.configuration.registry import (
-    MiniMaxLLMConfiguration,
     MiniMaxTTSConfiguration,
     ServiceProviders,
 )
-from api.services.pipecat.service_factory import (
-    create_llm_service_from_provider,
-    create_tts_service,
-)
-
-
-class TestMiniMaxLLMConfiguration:
-    def test_default_values(self):
-        config = MiniMaxLLMConfiguration(api_key="test-key")
-        assert config.provider == ServiceProviders.MINIMAX
-        assert config.model == "MiniMax-M2.7"
-        assert config.base_url == "https://api.minimax.io/v1"
-
-    def test_custom_model(self):
-        config = MiniMaxLLMConfiguration(
-            api_key="test-key", model="MiniMax-M2.7-highspeed"
-        )
-        assert config.model == "MiniMax-M2.7-highspeed"
-
-    def test_custom_base_url(self):
-        config = MiniMaxLLMConfiguration(
-            api_key="test-key", base_url="https://api.minimaxi.com/v1"
-        )
-        assert config.base_url == "https://api.minimaxi.com/v1"
+from api.services.pipecat.service_factory import create_tts_service
 
 
 class TestMiniMaxTTSConfiguration:
@@ -42,56 +16,6 @@ class TestMiniMaxTTSConfiguration:
         assert config.voice == "English_Graceful_Lady"
         assert config.speed == 1.0
         assert config.group_id == "test-group"
-
-
-class TestMiniMaxLLMServiceFactory:
-    def test_create_minimax_llm_service_uses_openai_compatible(self):
-        with patch(
-            "api.services.pipecat.service_factory.MiniMaxLLMService"
-        ) as mock_service:
-            mock_service.Settings = RealMiniMaxLLMService.Settings
-            create_llm_service_from_provider(
-                provider=ServiceProviders.MINIMAX.value,
-                model="MiniMax-M2.7",
-                api_key="test-key",
-            )
-
-        assert mock_service.call_count == 1
-        kwargs = mock_service.call_args.kwargs
-        assert kwargs["api_key"] == "test-key"
-        assert kwargs["base_url"] == "https://api.minimax.io/v1"
-        assert kwargs["settings"].model == "MiniMax-M2.7"
-        assert kwargs["settings"].temperature == 1.0
-
-    def test_create_minimax_llm_service_custom_base_url(self):
-        with patch(
-            "api.services.pipecat.service_factory.MiniMaxLLMService"
-        ) as mock_service:
-            mock_service.Settings = RealMiniMaxLLMService.Settings
-            create_llm_service_from_provider(
-                provider=ServiceProviders.MINIMAX.value,
-                model="MiniMax-M2.7-highspeed",
-                api_key="test-key",
-                base_url="https://api.minimaxi.com/v1",
-            )
-
-        kwargs = mock_service.call_args.kwargs
-        assert kwargs["base_url"] == "https://api.minimaxi.com/v1"
-        assert kwargs["settings"].model == "MiniMax-M2.7-highspeed"
-
-    def test_create_minimax_llm_service_passes_user_temperature(self):
-        with patch(
-            "api.services.pipecat.service_factory.MiniMaxLLMService"
-        ) as mock_service:
-            mock_service.Settings = RealMiniMaxLLMService.Settings
-            create_llm_service_from_provider(
-                provider=ServiceProviders.MINIMAX.value,
-                model="MiniMax-M2.7",
-                api_key="test-key",
-                temperature=0.3,
-            )
-        kwargs = mock_service.call_args.kwargs
-        assert kwargs["settings"].temperature == 0.3
 
 
 class TestMiniMaxTTSServiceFactory:

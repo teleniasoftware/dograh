@@ -1,7 +1,7 @@
 """Database access for telephony configurations.
 
 Each row represents one provider account that an organization has connected
-(e.g. "Twilio US prod", "Vobiz IN sandbox"). Replaces the single-row-per-org
+(e.g. "Twilio US prod", "Telnyx sandbox"). Replaces the single-row-per-org
 ``OrganizationConfiguration(TELEPHONY_CONFIGURATION)`` storage.
 """
 

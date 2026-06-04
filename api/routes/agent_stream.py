@@ -36,10 +36,9 @@ async def agent_stream_websocket(
     """Generic agent-stream WebSocket.
 
     Query params:
-        provider: registered telephony provider name (e.g. ``cloudonix``)
+        provider: registered telephony provider name
         from / to / callId: call metadata persisted on the workflow run
-        ...: provider-specific credentials/identifiers (e.g. ``session``,
-             ``AccountSid``, ``CallSid`` for cloudonix)
+        ...: provider-specific credentials/identifiers
 
     Without ``provider`` the raw-audio branch is currently not implemented.
     """
@@ -98,11 +97,7 @@ async def agent_stream_websocket(
         call_type=CallType.INBOUND,
         initial_context=initial_context,
         gathered_context={"call_id": call_id} if call_id else {},
-        logs={
-            "inbound_webhook": {
-                "domain": params.get("Domain"),
-            },
-        },
+        logs={"inbound_webhook": {"provider": provider_name}},
     )
 
     set_current_run_id(workflow_run.id)

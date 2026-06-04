@@ -135,8 +135,8 @@ async def parse_webhook_request(request: Request) -> tuple[dict, str]:
     """Parse webhook request data from either JSON or form.
 
     Returns ``(webhook_data, raw_body)`` where ``raw_body`` is the
-    request body decoded as UTF-8 — kept around for providers (e.g.
-    Vobiz) whose signature is computed over the raw bytes.
+    request body decoded as UTF-8 — kept around for providers whose signature
+    is computed over the raw bytes.
     """
     raw_body = (await request.body()).decode("utf-8", errors="replace")
     try:

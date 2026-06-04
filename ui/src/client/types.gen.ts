@@ -695,70 +695,6 @@ export type CircuitBreakerConfigResponse = {
 };
 
 /**
- * CloudonixConfigurationRequest
- *
- * Request schema for Cloudonix configuration.
- */
-export type CloudonixConfigurationRequest = {
-    /**
-     * Provider
-     */
-    provider?: 'cloudonix';
-    /**
-     * Bearer Token
-     *
-     * Cloudonix API Bearer Token
-     */
-    bearer_token: string;
-    /**
-     * Domain Id
-     *
-     * Cloudonix Domain ID
-     */
-    domain_id: string;
-    /**
-     * Application Name
-     *
-     * Cloudonix Voice Application name. The application's url is updated when inbound workflows are attached to numbers on this domain. If omitted, an application is auto-created on save and its name is stored on the configuration.
-     */
-    application_name?: string | null;
-    /**
-     * From Numbers
-     *
-     * List of Cloudonix phone numbers (optional)
-     */
-    from_numbers?: Array<string>;
-};
-
-/**
- * CloudonixConfigurationResponse
- *
- * Response schema for Cloudonix configuration with masked sensitive fields.
- */
-export type CloudonixConfigurationResponse = {
-    /**
-     * Provider
-     */
-    provider?: 'cloudonix';
-    /**
-     * Bearer Token
-     */
-    bearer_token: string;
-    /**
-     * Domain Id
-     */
-    domain_id: string;
-    /**
-     * Application Name
-     */
-    application_name?: string | null;
-    /**
-     * From Numbers
-     */
-    from_numbers: Array<string>;
-};
-
-/**
  * CreateAPIKeyRequest
  */
 export type CreateApiKeyRequest = {
@@ -3279,8 +3215,6 @@ export type TelephonyConfigurationCreateRequest = {
     config: ({
         provider: 'ari';
     } & AriConfigurationRequest) | ({
-        provider: 'cloudonix';
-    } & CloudonixConfigurationRequest) | ({
         provider: 'plivo';
     } & PlivoConfigurationRequest) | ({
         provider: 'sip';
@@ -3289,8 +3223,6 @@ export type TelephonyConfigurationCreateRequest = {
     } & TelnyxConfigurationRequest) | ({
         provider: 'twilio';
     } & TwilioConfigurationRequest) | ({
-        provider: 'vobiz';
-    } & VobizConfigurationRequest) | ({
         provider: 'vonage';
     } & VonageConfigurationRequest);
 };
@@ -3392,8 +3324,6 @@ export type TelephonyConfigurationResponse = {
     twilio?: TwilioConfigurationResponse | null;
     plivo?: PlivoConfigurationResponse | null;
     vonage?: VonageConfigurationResponse | null;
-    vobiz?: VobizConfigurationResponse | null;
-    cloudonix?: CloudonixConfigurationResponse | null;
     ari?: AriConfigurationResponse | null;
     telnyx?: TelnyxConfigurationResponse | null;
     sip?: SipConfigurationResponse | null;
@@ -3415,8 +3345,6 @@ export type TelephonyConfigurationUpdateRequest = {
     config?: ({
         provider: 'ari';
     } & AriConfigurationRequest) | ({
-        provider: 'cloudonix';
-    } & CloudonixConfigurationRequest) | ({
         provider: 'plivo';
     } & PlivoConfigurationRequest) | ({
         provider: 'sip';
@@ -3425,8 +3353,6 @@ export type TelephonyConfigurationUpdateRequest = {
     } & TelnyxConfigurationRequest) | ({
         provider: 'twilio';
     } & TwilioConfigurationRequest) | ({
-        provider: 'vobiz';
-    } & VobizConfigurationRequest) | ({
         provider: 'vonage';
     } & VonageConfigurationRequest) | null;
 };
@@ -4223,70 +4149,6 @@ export type ValidationError = {
 };
 
 /**
- * VobizConfigurationRequest
- *
- * Request schema for Vobiz configuration.
- */
-export type VobizConfigurationRequest = {
-    /**
-     * Provider
-     */
-    provider?: 'vobiz';
-    /**
-     * Auth Id
-     *
-     * Vobiz Account ID (e.g., MA_SYQRLN1K)
-     */
-    auth_id: string;
-    /**
-     * Auth Token
-     *
-     * Vobiz Auth Token
-     */
-    auth_token: string;
-    /**
-     * Application Id
-     *
-     * Vobiz Application ID. The application's answer_url is updated when inbound workflows are attached to numbers on this account. If omitted, an application is auto-created on save and its id is stored on the configuration.
-     */
-    application_id?: string | null;
-    /**
-     * From Numbers
-     *
-     * List of Vobiz phone numbers (E.164 without + prefix)
-     */
-    from_numbers?: Array<string>;
-};
-
-/**
- * VobizConfigurationResponse
- *
- * Response schema for Vobiz configuration with masked sensitive fields.
- */
-export type VobizConfigurationResponse = {
-    /**
-     * Provider
-     */
-    provider?: 'vobiz';
-    /**
-     * Auth Id
-     */
-    auth_id: string;
-    /**
-     * Auth Token
-     */
-    auth_token: string;
-    /**
-     * Application Id
-     */
-    application_id?: string | null;
-    /**
-     * From Numbers
-     */
-    from_numbers: Array<string>;
-};
-
-/**
  * VonageConfigurationRequest
  *
  * Request schema for Vonage configuration.
@@ -5067,59 +4929,6 @@ export type CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPo
     200: unknown;
 };
 
-export type HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostData = {
-    body?: never;
-    path: {
-        /**
-         * Workflow Run Id
-         */
-        workflow_run_id: number;
-    };
-    query?: never;
-    url: '/api/v1/telephony/cloudonix/status-callback/{workflow_run_id}';
-};
-
-export type HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostErrors = {
-    /**
-     * Not found
-     */
-    404: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostError = HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostErrors[keyof HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostErrors];
-
-export type HandleCloudonixStatusCallbackApiV1TelephonyCloudonixStatusCallbackWorkflowRunIdPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/telephony/cloudonix/cdr';
-};
-
-export type HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostErrors = {
-    /**
-     * Not found
-     */
-    404: unknown;
-};
-
-export type HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
 export type HandlePlivoHangupCallbackApiV1TelephonyPlivoHangupCallbackWorkflowRunIdPostData = {
     body?: never;
     path: {
@@ -5274,132 +5083,6 @@ export type HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflow
 export type HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPostError = HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPostErrors[keyof HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPostErrors];
 
 export type HandleTwilioStatusCallbackApiV1TelephonyTwilioStatusCallbackWorkflowRunIdPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostData = {
-    body?: never;
-    headers?: {
-        /**
-         * X-Vobiz-Signature
-         */
-        'x-vobiz-signature'?: string | null;
-        /**
-         * X-Vobiz-Timestamp
-         */
-        'x-vobiz-timestamp'?: string | null;
-    };
-    path: {
-        /**
-         * Workflow Run Id
-         */
-        workflow_run_id: number;
-    };
-    query?: never;
-    url: '/api/v1/telephony/vobiz/hangup-callback/{workflow_run_id}';
-};
-
-export type HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostErrors = {
-    /**
-     * Not found
-     */
-    404: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostError = HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostErrors[keyof HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostErrors];
-
-export type HandleVobizHangupCallbackApiV1TelephonyVobizHangupCallbackWorkflowRunIdPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostData = {
-    body?: never;
-    headers?: {
-        /**
-         * X-Vobiz-Signature
-         */
-        'x-vobiz-signature'?: string | null;
-        /**
-         * X-Vobiz-Timestamp
-         */
-        'x-vobiz-timestamp'?: string | null;
-    };
-    path: {
-        /**
-         * Workflow Run Id
-         */
-        workflow_run_id: number;
-    };
-    query?: never;
-    url: '/api/v1/telephony/vobiz/ring-callback/{workflow_run_id}';
-};
-
-export type HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostErrors = {
-    /**
-     * Not found
-     */
-    404: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostError = HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostErrors[keyof HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostErrors];
-
-export type HandleVobizRingCallbackApiV1TelephonyVobizRingCallbackWorkflowRunIdPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostData = {
-    body?: never;
-    headers?: {
-        /**
-         * X-Vobiz-Signature
-         */
-        'x-vobiz-signature'?: string | null;
-        /**
-         * X-Vobiz-Timestamp
-         */
-        'x-vobiz-timestamp'?: string | null;
-    };
-    path: {
-        /**
-         * Workflow Id
-         */
-        workflow_id: number;
-    };
-    query?: never;
-    url: '/api/v1/telephony/vobiz/hangup-callback/workflow/{workflow_id}';
-};
-
-export type HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostErrors = {
-    /**
-     * Not found
-     */
-    404: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostError = HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostErrors[keyof HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostErrors];
-
-export type HandleVobizHangupCallbackByWorkflowApiV1TelephonyVobizHangupCallbackWorkflowWorkflowIdPostResponses = {
     /**
      * Successful Response
      */
@@ -8778,8 +8461,6 @@ export type SaveTelephonyConfigurationApiV1OrganizationsTelephonyConfigPostData 
     body: ({
         provider: 'ari';
     } & AriConfigurationRequest) | ({
-        provider: 'cloudonix';
-    } & CloudonixConfigurationRequest) | ({
         provider: 'plivo';
     } & PlivoConfigurationRequest) | ({
         provider: 'sip';
@@ -8788,8 +8469,6 @@ export type SaveTelephonyConfigurationApiV1OrganizationsTelephonyConfigPostData 
     } & TelnyxConfigurationRequest) | ({
         provider: 'twilio';
     } & TwilioConfigurationRequest) | ({
-        provider: 'vobiz';
-    } & VobizConfigurationRequest) | ({
         provider: 'vonage';
     } & VonageConfigurationRequest);
     headers?: {

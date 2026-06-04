@@ -17,14 +17,6 @@ import nacl.signing
 from fastapi import HTTPException, WebSocketDisconnect
 from loguru import logger
 
-# 5-min replay window — matches Telnyx SDKs (Python/Node/Go/Ruby/PHP);
-# Source: github.com/team-telnyx/telnyx-python src/telnyx/lib/webhook_verification.py
-TELNYX_TIMESTAMP_TOLERANCE_SECONDS = 300
-
-# Ed25519 sizes per RFC 8032; Telnyx SDKs check these for clearer errors than PyNaCl.
-TELNYX_PUBLIC_KEY_BYTES = 32
-TELNYX_SIGNATURE_BYTES = 64
-
 from api.enums import WorkflowRunMode
 from api.services.telephony.base import (
     CallInitiationResult,
@@ -37,6 +29,15 @@ from api.utils.telephony_address import normalize_telephony_address
 
 if TYPE_CHECKING:
     from fastapi import WebSocket
+
+
+# 5-min replay window — matches Telnyx SDKs (Python/Node/Go/Ruby/PHP);
+# Source: github.com/team-telnyx/telnyx-python src/telnyx/lib/webhook_verification.py
+TELNYX_TIMESTAMP_TOLERANCE_SECONDS = 300
+
+# Ed25519 sizes per RFC 8032; Telnyx SDKs check these for clearer errors than PyNaCl.
+TELNYX_PUBLIC_KEY_BYTES = 32
+TELNYX_SIGNATURE_BYTES = 64
 
 
 def normalize_event_type(event_type: str) -> str:
@@ -431,7 +432,7 @@ class TelnyxProvider(TelephonyProvider):
     ) -> None:
         """Answer an inbound Telnyx call and start WebSocket streaming inline.
 
-        This is Telnyx-specific: unlike Twilio/Vobiz where you return XML in the
+        This is Telnyx-specific: unlike markup-response providers where you return XML in the
         webhook response, Telnyx requires an explicit REST API call to answer
         the call and set up streaming.
 

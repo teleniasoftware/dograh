@@ -24,9 +24,8 @@ class StatusCallbackRequest(BaseModel):
     """Normalized status callback shape used across all telephony providers.
 
     Per-provider converters live as classmethods (``from_twilio``, ``from_plivo``,
-    ``from_vonage``, ``from_cloudonix_cdr``) so the route handler for each
-    provider can map raw webhook payloads into this shape and hand off to
-    :func:`_process_status_update`.
+    ``from_vonage``) so the route handler for each provider can map raw webhook
+    payloads into this shape and hand off to :func:`_process_status_update`.
     """
 
     call_id: str
@@ -99,30 +98,6 @@ class StatusCallbackRequest(BaseModel):
             to_number=data.get("to"),
             direction=data.get("direction"),
             duration=data.get("duration"),
-            extra=data,
-        )
-
-    @classmethod
-    def from_cloudonix_cdr(cls, data: dict):
-        """Convert Cloudonix CDR to generic format."""
-        disposition_map = {
-            "ANSWER": "completed",
-            "BUSY": "busy",
-            "CANCEL": "canceled",
-            "FAILED": "failed",
-            "CONGESTION": "failed",
-            "NOANSWER": "no-answer",
-        }
-
-        disposition = data.get("disposition", "")
-        status = disposition_map.get(disposition.upper(), disposition.lower())
-
-        return cls(
-            call_id=data.get("session").get("token"),
-            status=status,
-            from_number=data.get("from"),
-            to_number=data.get("to"),
-            duration=str(data.get("billsec") or data.get("duration") or 0),
             extra=data,
         )
 

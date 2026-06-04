@@ -8,9 +8,8 @@ from pipecat.frames.frames import (
     InterruptionTaskFrame,
     LLMRunFrame,
 )
-from pipecat.pipeline.base_task import PipelineTaskParams
 from pipecat.pipeline.pipeline import Pipeline
-from pipecat.pipeline.task import PipelineTask
+from pipecat.pipeline.task import PipelineTask, PipelineTaskParams
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 
 

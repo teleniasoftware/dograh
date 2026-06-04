@@ -44,7 +44,7 @@ class ProviderSyncResult:
 class NormalizedInboundData:
     """Standardized inbound call data across all providers."""
 
-    provider: str  # Provider name (twilio, vobiz, etc.)
+    provider: str  # Provider name (twilio, plivo, etc.)
     call_id: str  # Provider's call identifier
     from_number: str  # Caller phone number (E.164 format)
     to_number: str  # Called phone number (E.164 format)
@@ -283,8 +283,8 @@ class TelephonyProvider(ABC):
             webhook_data: Parsed webhook payload (form fields or JSON)
             headers: HTTP headers from the request (case-insensitive lookup
                 is the provider's responsibility)
-            body: Raw request body — only used by providers that sign over
-                the body bytes (e.g. Vobiz)
+            body: Raw request body — used by providers whose signature covers
+                the exact payload bytes
 
         Returns:
             True if signature is valid (or none required), False otherwise
@@ -304,7 +304,7 @@ class TelephonyProvider(ABC):
         Bring up the inbound media stream for this provider and return the
         HTTP response body the webhook caller expects.
 
-        Markup-response providers (Twilio, Plivo, Vobiz, ...) build and
+        Markup-response providers (Twilio, Plivo, Vonage, ...) build and
         return their TwiML/XML/NCCO directly. Call-control providers
         (Telnyx) issue the REST calls needed to answer the call and start
         streaming, then return a simple acknowledgement.

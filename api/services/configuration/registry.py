@@ -57,7 +57,6 @@ class ServiceProviders(str, Enum):
     SPEECHMATICS = "speechmatics"
     CAMB = "camb"
     AWS_BEDROCK = "aws_bedrock"
-    SPEACHES = "speaches"
     ASSEMBLYAI = "assemblyai"
     GLADIA = "gladia"
     RIME = "rime"
@@ -81,7 +80,6 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.GOOGLE,
         ServiceProviders.AZURE,
         ServiceProviders.AWS_BEDROCK,
-        ServiceProviders.SPEACHES,
         ServiceProviders.ASSEMBLYAI,
         ServiceProviders.GLADIA,
         ServiceProviders.RIME,
@@ -235,14 +233,6 @@ SPEECHMATICS_PROVIDER_MODEL_CONFIG = provider_model_config("Speechmatics")
 FASTWEB_PROVIDER_MODEL_CONFIG = provider_model_config("FastWeb AI Factory")
 ASSEMBLYAI_PROVIDER_MODEL_CONFIG = provider_model_config("AssemblyAI")
 GLADIA_PROVIDER_MODEL_CONFIG = provider_model_config("Gladia")
-SPEACHES_PROVIDER_MODEL_CONFIG = provider_model_config(
-    "Local Models (Speaches)",
-    description=(
-        "Self-hosted OpenAI-compatible local models. See the Speaches project "
-        "for setup and supported backends."
-    ),
-    provider_docs_url="https://github.com/speaches-ai/speaches",
-)
 
 OPENAI_MODELS = [
     "gpt-4.1",
@@ -411,58 +401,6 @@ class AWSBedrockLLMConfiguration(BaseLLMConfiguration):
         default=None,
         description="Not used for Bedrock — authentication is via the AWS credentials above. Leave blank.",
     )
-
-
-SPEACHES_LLM_MODELS = ["llama3", "mistral", "phi3", "qwen2", "gemma2", "deepseek-r1"]
-
-
-@register_llm
-class SpeachesLLMConfiguration(BaseLLMConfiguration):
-    model_config = SPEACHES_PROVIDER_MODEL_CONFIG
-    provider: Literal[ServiceProviders.SPEACHES] = ServiceProviders.SPEACHES
-    model: str = Field(
-        default="llama3",
-        description="Model name as exposed by your OpenAI-compatible server.",
-        json_schema_extra={
-            "examples": SPEACHES_LLM_MODELS,
-            "allow_custom_input": True,
-        },
-    )
-    base_url: str = Field(
-        default="http://localhost:11434/v1",
-        description="OpenAI-compatible endpoint (Ollama, vLLM, etc.).",
-    )
-    api_key: str | list[str] | None = Field(
-        default=None,
-        description="Usually not required for self-hosted endpoints. Leave blank unless your server enforces one.",
-    )
-
-
-MINIMAX_MODELS = [
-    "MiniMax-M2.7",
-    "MiniMax-M2.7-highspeed",
-]
-
-
-@register_llm
-class MiniMaxLLMConfiguration(BaseLLMConfiguration):
-    provider: Literal[ServiceProviders.MINIMAX] = ServiceProviders.MINIMAX
-    model: str = Field(
-        default="MiniMax-M2.7",
-        description="MiniMax chat model.",
-        json_schema_extra={"examples": MINIMAX_MODELS, "allow_custom_input": True},
-    )
-    base_url: str = Field(
-        default="https://api.minimax.io/v1",
-        description="MiniMax OpenAI-compatible API endpoint.",
-    )
-    temperature: float = Field(
-        default=1.0,
-        gt=0.0,
-        le=2.0,
-        description="Sampling temperature. MiniMax requires > 0.",
-    )
-
 
 OPENAI_REALTIME_MODELS = ["gpt-realtime-2"]
 OPENAI_REALTIME_VOICES = [
@@ -650,8 +588,6 @@ LLMConfig = Annotated[
         GoogleLLMService,
         AzureLLMService,
         AWSBedrockLLMConfiguration,
-        SpeachesLLMConfiguration,
-        MiniMaxLLMConfiguration,
     ],
     Field(discriminator="provider"),
 ]
@@ -890,40 +826,6 @@ class RimeTTSConfiguration(BaseTTSConfiguration):
         json_schema_extra={"examples": RIME_TTS_LANGUAGES, "allow_custom_input": True},
     )
 
-
-SPEACHES_TTS_MODELS = ["hexgrad/Kokoro-82M"]
-
-
-@register_tts
-class SpeachesTTSConfiguration(BaseTTSConfiguration):
-    model_config = SPEACHES_PROVIDER_MODEL_CONFIG
-    provider: Literal[ServiceProviders.SPEACHES] = ServiceProviders.SPEACHES
-    model: str = Field(
-        default="kokoro",
-        description="Model name as served by your TTS endpoint (e.g. Kokoro-FastAPI).",
-        json_schema_extra={
-            "examples": SPEACHES_TTS_MODELS,
-            "allow_custom_input": True,
-        },
-    )
-    voice: str = Field(
-        default="af_heart",
-        json_schema_extra={"allow_custom_input": True},
-        description="Voice ID for the TTS engine.",
-    )
-    base_url: str = Field(
-        default="http://localhost:8000/v1",
-        description="OpenAI-compatible TTS endpoint (Kokoro-FastAPI, etc.).",
-    )
-    speed: float = Field(
-        default=1.0, ge=0.25, le=4.0, description="Speech speed (0.25 to 4.0)."
-    )
-    api_key: str | list[str] | None = Field(
-        default=None,
-        description="Usually not required for self-hosted TTS. Leave blank unless enforced.",
-    )
-
-
 MINIMAX_TTS_MODELS = ["speech-2.8-hd", "speech-2.8-turbo"]
 MINIMAX_TTS_VOICES = [
     "English_Graceful_Lady",
@@ -1005,7 +907,6 @@ TTSConfig = Annotated[
         SarvamTTSConfiguration,
         CambTTSConfiguration,
         RimeTTSConfiguration,
-        SpeachesTTSConfiguration,
         MiniMaxTTSConfiguration,
         FastwebKokoroTTSConfiguration,
     ],
@@ -1134,44 +1035,6 @@ class SpeechmaticsSTTConfiguration(BaseSTTConfiguration):
         json_schema_extra={"examples": SPEECHMATICS_STT_LANGUAGES},
     )
 
-
-SPEACHES_STT_MODELS = [
-    "Systran/faster-distil-whisper-small.en",
-    "Systran/faster-whisper-large-v3",
-]
-SPEACHES_STT_LANGUAGES = ["en", "ar", "nl", "fr", "de", "hi", "it", "pt", "es"]
-
-
-@register_stt
-class SpeachesSTTConfiguration(BaseSTTConfiguration):
-    model_config = SPEACHES_PROVIDER_MODEL_CONFIG
-    provider: Literal[ServiceProviders.SPEACHES] = ServiceProviders.SPEACHES
-    model: str = Field(
-        default="Systran/faster-distil-whisper-small.en",
-        description="Whisper model identifier as served by your STT endpoint.",
-        json_schema_extra={
-            "examples": SPEACHES_STT_MODELS,
-            "allow_custom_input": True,
-        },
-    )
-    language: str = Field(
-        default="en",
-        description="ISO 639-1 language code.",
-        json_schema_extra={
-            "examples": SPEACHES_STT_LANGUAGES,
-            "allow_custom_input": True,
-        },
-    )
-    base_url: str = Field(
-        default="http://localhost:8000/v1",
-        description="OpenAI-compatible STT endpoint (Speaches, etc.).",
-    )
-    api_key: str | list[str] | None = Field(
-        default=None,
-        description="Usually not required for self-hosted STT. Leave blank unless enforced.",
-    )
-
-
 ASSEMBLYAI_STT_MODELS = ["u3-rt-pro"]
 ASSEMBLYAI_STT_LANGUAGES = ["en", "es", "de", "fr", "pt", "it"]
 
@@ -1239,7 +1102,6 @@ STTConfig = Annotated[
         GoogleSTTConfiguration,
         SpeechmaticsSTTConfiguration,
         SarvamSTTConfiguration,
-        SpeachesSTTConfiguration,
         AssemblyAISTTConfiguration,
         GladiaSTTConfiguration,
         FastwebSTTConfiguration,
@@ -1281,37 +1143,10 @@ class OpenRouterEmbeddingsConfiguration(BaseEmbeddingsConfiguration):
         description="Override only if proxying OpenRouter through your own gateway.",
     )
 
-
-SPEACHES_EMBEDDING_MODELS = ["text-embedding-3-small", "nomic-embed-text", "bge-m3"]
-
-
-@register_embeddings
-class SpeachesEmbeddingsConfiguration(BaseEmbeddingsConfiguration):
-    model_config = SPEACHES_PROVIDER_MODEL_CONFIG
-    provider: Literal[ServiceProviders.SPEACHES] = ServiceProviders.SPEACHES
-    model: str = Field(
-        default="text-embedding-3-small",
-        description="Embedding model name as exposed by your OpenAI-compatible server.",
-        json_schema_extra={
-            "examples": SPEACHES_EMBEDDING_MODELS,
-            "allow_custom_input": True,
-        },
-    )
-    base_url: str = Field(
-        default="http://localhost:11434/v1",
-        description="OpenAI-compatible embeddings endpoint (Ollama, vLLM, etc.).",
-    )
-    api_key: str | list[str] | None = Field(
-        default=None,
-        description="Usually not required for self-hosted endpoints. Leave blank unless your server enforces one.",
-    )
-
-
 EmbeddingsConfig = Annotated[
     Union[
         OpenAIEmbeddingsConfiguration,
         OpenRouterEmbeddingsConfiguration,
-        SpeachesEmbeddingsConfiguration,
     ],
     Field(discriminator="provider"),
 ]

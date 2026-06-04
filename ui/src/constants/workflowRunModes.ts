@@ -5,8 +5,6 @@
 export const WORKFLOW_RUN_MODES = {
     TWILIO: 'twilio',
     VONAGE: 'vonage',
-    VOBIZ: 'vobiz',
-    CLOUDONIX: 'cloudonix',
     WEBRTC: 'webrtc',
     SMALL_WEBRTC: 'smallwebrtc',
     TEXTCHAT: 'textchat',

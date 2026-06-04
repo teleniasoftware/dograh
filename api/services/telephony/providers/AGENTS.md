@@ -108,9 +108,7 @@ Pick the closest shape and copy from it.
 | `twilio/`    | Markup-response (TwiML), HMAC-signed webhooks, conference-style transfers, status callbacks. The most full-featured reference. |
 | `plivo/`     | Markup-response with multi-callback signature schemes, programmatic answer-URL sync via Application API.                       |
 | `vonage/`    | JWT auth, 16 kHz Linear PCM wire format, NCCO JSON responses.                                                                  |
-| `cloudonix/` | SIP-trunk-style with custom transfer/hangup strategies.                                                                        |
 | `telnyx/`    | Call-control style — REST calls to answer/stream rather than markup response.                                                  |
-| `vobiz/`     | Body-signed webhooks (signature covers raw bytes).                                                                             |
 | `ari/`       | Smallest viable: no `routes.py`, no `verify_inbound_signature`, WebSocket-only, no account-id.                                 |
 
 ## What NOT to do

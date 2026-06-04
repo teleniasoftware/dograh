@@ -45,7 +45,6 @@ class UserConfigurationValidator:
             ServiceProviders.SPEECHMATICS.value: self._check_speechmatics_api_key,
             ServiceProviders.CAMB.value: self._check_camb_api_key,
             ServiceProviders.AWS_BEDROCK.value: self._check_aws_bedrock_api_key,
-            ServiceProviders.SPEACHES.value: self._check_speaches_api_key,
             ServiceProviders.GOOGLE_VERTEX.value: self._check_google_vertex_llm_api_key,
             ServiceProviders.OPENAI_REALTIME.value: self._check_openai_api_key,
             ServiceProviders.GROK_REALTIME.value: self._check_grok_realtime_api_key,
@@ -117,19 +116,6 @@ class UserConfigurationValidator:
                 except ValueError as e:
                     return [{"model": service_name, "message": str(e)}]
 
-        # Speaches doesn't require an API key
-        if provider == ServiceProviders.SPEACHES.value:
-            try:
-                if not self._check_speaches_api_key(provider, service_config):
-                    return [
-                        {
-                            "model": service_name,
-                            "message": f"Invalid {provider} configuration",
-                        }
-                    ]
-            except ValueError as e:
-                return [{"model": service_name, "message": str(e)}]
-            return []
         # FastWeb STT doesn't require an API key; TTS requires a Bearer token
         if provider == ServiceProviders.FASTWEB.value:
             if service_name == "stt":
@@ -341,11 +327,6 @@ class UserConfigurationValidator:
         return True
 
     def _check_camb_api_key(self, model: str, api_key: str) -> bool:
-        return True
-
-    def _check_speaches_api_key(self, model: str, service_config) -> bool:
-        if not getattr(service_config, "base_url", None):
-            raise ValueError("base_url is required for Speaches services")
         return True
 
     def _check_google_vertex_realtime_api_key(self, model: str, service_config) -> bool:

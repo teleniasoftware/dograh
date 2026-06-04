@@ -5,6 +5,15 @@ from typing import Annotated, Dict, Literal, Type, TypeVar, Union
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from api.services.configuration.options import (
+    AZURE_EMBEDDING_MODELS,
+    AZURE_MODELS,
+    AZURE_REALTIME_API_VERSIONS,
+    AZURE_REALTIME_MODELS,
+    AZURE_REALTIME_VOICES,
+    AZURE_SPEECH_REGIONS,
+    AZURE_SPEECH_STT_LANGUAGES,
+    AZURE_SPEECH_TTS_LANGUAGES,
+    AZURE_SPEECH_TTS_VOICES,
     DEEPGRAM_LANGUAGES,
     DEEPGRAM_STT_MODELS,
     GLADIA_STT_LANGUAGES,
@@ -22,6 +31,9 @@ from api.services.configuration.options import (
     GOOGLE_VERTEX_REALTIME_MODELS,
     GOOGLE_VERTEX_REALTIME_VOICES,
     SARVAM_LANGUAGES,
+    SARVAM_LLM_MODELS,
+    SARVAM_STT_LANGUAGES_V3,
+    SARVAM_STT_LANGUAGES_V25,
     SARVAM_STT_MODELS,
     SARVAM_TTS_MODELS,
     SARVAM_V2_VOICES,
@@ -34,6 +46,7 @@ from api.services.configuration.options.fastweb import (
     FASTWEB_STT_LANGUAGES,
 )
 from api.services.configuration.options.google import GOOGLE_VERTEX_MODELS
+
 
 class ServiceType(Enum):
     LLM = auto()
@@ -53,6 +66,7 @@ class ServiceProviders(str, Enum):
     ELEVENLABS = "elevenlabs"
     GOOGLE = "google"
     AZURE = "azure"
+    AZURE_SPEECH = "azure_speech"
     SARVAM = "sarvam"
     SPEECHMATICS = "speechmatics"
     CAMB = "camb"
@@ -68,6 +82,7 @@ class ServiceProviders(str, Enum):
     GOOGLE_REALTIME = "google_realtime"
     GOOGLE_VERTEX_REALTIME = "google_vertex_realtime"
     FASTWEB = "fastweb"
+    AZURE_REALTIME = "azure_realtime"
 
 
 class BaseServiceConfiguration(BaseModel):
@@ -79,6 +94,7 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.ELEVENLABS,
         ServiceProviders.GOOGLE,
         ServiceProviders.AZURE,
+        ServiceProviders.AZURE_SPEECH,
         ServiceProviders.AWS_BEDROCK,
         ServiceProviders.ASSEMBLYAI,
         ServiceProviders.GLADIA,
@@ -91,7 +107,8 @@ class BaseServiceConfiguration(BaseModel):
         ServiceProviders.GOOGLE_REALTIME,
         ServiceProviders.GOOGLE_VERTEX_REALTIME,
         ServiceProviders.FASTWEB,
-        # ServiceProviders.SARVAM,
+        ServiceProviders.AZURE_REALTIME,
+        ServiceProviders.SARVAM,
     ]
     api_key: str | list[str]
 
@@ -233,6 +250,16 @@ SPEECHMATICS_PROVIDER_MODEL_CONFIG = provider_model_config("Speechmatics")
 FASTWEB_PROVIDER_MODEL_CONFIG = provider_model_config("FastWeb AI Factory")
 ASSEMBLYAI_PROVIDER_MODEL_CONFIG = provider_model_config("AssemblyAI")
 GLADIA_PROVIDER_MODEL_CONFIG = provider_model_config("Gladia")
+AZURE_SPEECH_PROVIDER_MODEL_CONFIG = provider_model_config(
+    "Azure Speech Services",
+    description="Azure Cognitive Services Speech — TTS and STT via the Azure Speech SDK.",
+    provider_docs_url="https://learn.microsoft.com/en-us/azure/ai-services/speech-service/",
+)
+AZURE_REALTIME_PROVIDER_MODEL_CONFIG = provider_model_config(
+    "Azure OpenAI Realtime",
+    description="Azure OpenAI Realtime API — low-latency speech-to-speech conversations.",
+    provider_docs_url="https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/realtime-audio-quickstart",
+)
 
 OPENAI_MODELS = [
     "gpt-4.1",
@@ -400,6 +427,29 @@ class AWSBedrockLLMConfiguration(BaseLLMConfiguration):
     api_key: str | list[str] | None = Field(
         default=None,
         description="Not used for Bedrock — authentication is via the AWS credentials above. Leave blank.",
+    )
+
+
+@register_llm
+class SarvamLLMConfiguration(BaseLLMConfiguration):
+    model_config = SARVAM_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.SARVAM] = ServiceProviders.SARVAM
+    model: str = Field(
+        default="sarvam-30b",
+        description=(
+            "Sarvam chat model. Use sarvam-30b for low-latency voice agents; "
+            "sarvam-105b for complex multi-step reasoning."
+        ),
+        json_schema_extra={"examples": SARVAM_LLM_MODELS, "allow_custom_input": True},
+    )
+    temperature: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=2.0,
+        description=(
+            "Sampling temperature. Sarvam recommends 0.5 for balanced "
+            "conversational responses."
+        ),
     )
 
 OPENAI_REALTIME_MODELS = ["gpt-realtime-2"]
@@ -570,12 +620,45 @@ class GoogleVertexRealtimeLLMConfiguration(BaseLLMConfiguration):
     )
 
 
+@register_service(ServiceType.REALTIME)
+class AzureRealtimeLLMConfiguration(BaseLLMConfiguration):
+    model_config = AZURE_REALTIME_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.AZURE_REALTIME] = ServiceProviders.AZURE_REALTIME
+    model: str = Field(
+        default="gpt-4o-realtime-preview",
+        description="Azure OpenAI realtime deployment name.",
+        json_schema_extra={
+            "examples": AZURE_REALTIME_MODELS,
+            "allow_custom_input": True,
+        },
+    )
+    endpoint: str = Field(
+        description="Azure OpenAI resource endpoint (e.g. https://<resource>.openai.azure.com).",
+    )
+    voice: str = Field(
+        default="alloy",
+        description="Voice the model speaks in.",
+        json_schema_extra={
+            "examples": AZURE_REALTIME_VOICES,
+            "allow_custom_input": True,
+        },
+    )
+    api_version: str = Field(
+        default="2025-04-01-preview",
+        description="Azure OpenAI API version.",
+        json_schema_extra={
+            "examples": AZURE_REALTIME_API_VERSIONS,
+        },
+    )
+
+
 REALTIME_PROVIDERS = {
     ServiceProviders.OPENAI_REALTIME.value,
     ServiceProviders.GROK_REALTIME.value,
     ServiceProviders.ULTRAVOX_REALTIME.value,
     ServiceProviders.GOOGLE_REALTIME.value,
     ServiceProviders.GOOGLE_VERTEX_REALTIME.value,
+    ServiceProviders.AZURE_REALTIME.value,
 }
 
 
@@ -588,6 +671,7 @@ LLMConfig = Annotated[
         GoogleLLMService,
         AzureLLMService,
         AWSBedrockLLMConfiguration,
+        SarvamLLMConfiguration,
     ],
     Field(discriminator="provider"),
 ]
@@ -599,6 +683,7 @@ RealtimeConfig = Annotated[
         UltravoxRealtimeLLMConfiguration,
         GoogleRealtimeLLMConfiguration,
         GoogleVertexRealtimeLLMConfiguration,
+        AzureRealtimeLLMConfiguration,
     ],
     Field(discriminator="provider"),
 ]
@@ -729,6 +814,10 @@ class OpenAITTSService(BaseTTSConfiguration):
     voice: str = Field(
         default="alloy",
         description="OpenAI TTS voice name.",
+    )
+    base_url: str = Field(
+        default="https://api.openai.com/v1",
+        description="Override only if using an OpenAI-compatible API (e.g. local TTS, proxy).",
     )
 
 
@@ -897,6 +986,46 @@ class FastwebKokoroTTSConfiguration(BaseTTSConfiguration):
     )
 
 
+@register_tts
+class AzureSpeechTTSConfiguration(BaseTTSConfiguration):
+    model_config = AZURE_SPEECH_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.AZURE_SPEECH] = ServiceProviders.AZURE_SPEECH
+    model: str = Field(
+        default="neural",
+        description="Azure Speech synthesis engine (neural voices only).",
+        json_schema_extra={"examples": ["neural"]},
+    )
+    region: str = Field(
+        default="eastus",
+        description="Azure region for Speech Services (e.g. 'eastus', 'westeurope').",
+        json_schema_extra={
+            "examples": AZURE_SPEECH_REGIONS,
+        },
+    )
+    voice: str = Field(
+        default="en-US-AriaNeural",
+        description="Azure Neural voice name (e.g. 'en-US-AriaNeural').",
+        json_schema_extra={
+            "examples": AZURE_SPEECH_TTS_VOICES,
+            "allow_custom_input": True,
+        },
+    )
+    language: str = Field(
+        default="en-US",
+        description="BCP-47 language code for synthesis.",
+        json_schema_extra={
+            "examples": AZURE_SPEECH_TTS_LANGUAGES,
+            "allow_custom_input": True,
+        },
+    )
+    speed: float = Field(
+        default=1.0,
+        ge=0.5,
+        le=2.0,
+        description="Speech speed multiplier (0.5 to 2.0).",
+    )
+
+
 TTSConfig = Annotated[
     Union[
         DeepgramTTSConfiguration,
@@ -909,6 +1038,7 @@ TTSConfig = Annotated[
         RimeTTSConfiguration,
         MiniMaxTTSConfiguration,
         FastwebKokoroTTSConfiguration,
+        AzureSpeechTTSConfiguration,
     ],
     Field(discriminator="provider"),
 ]
@@ -964,6 +1094,10 @@ class OpenAISTTConfiguration(BaseSTTConfiguration):
         description="OpenAI transcription model.",
         json_schema_extra={"examples": OPENAI_STT_MODELS},
     )
+    base_url: str = Field(
+        default="https://api.openai.com/v1",
+        description="Override only if using an OpenAI-compatible API (e.g. local STT, proxy).",
+    )
 
 
 @register_stt
@@ -1011,13 +1145,24 @@ class SarvamSTTConfiguration(BaseSTTConfiguration):
     provider: Literal[ServiceProviders.SARVAM] = ServiceProviders.SARVAM
     model: str = Field(
         default="saarika:v2.5",
-        description="Sarvam STT model.",
+        description=(
+            "Sarvam STT model. saarika:v2.5 transcribes in the spoken language; "
+            "saaras:v3 is the recommended model with flexible output modes."
+        ),
         json_schema_extra={"examples": SARVAM_STT_MODELS},
     )
     language: str = Field(
-        default="hi-IN",
-        description="BCP-47 Indian-language code.",
-        json_schema_extra={"examples": SARVAM_LANGUAGES},
+        default="unknown",
+        description=(
+            "BCP-47 language code. Use unknown for automatic language detection."
+        ),
+        json_schema_extra={
+            "examples": SARVAM_STT_LANGUAGES_V25,
+            "model_options": {
+                "saarika:v2.5": SARVAM_STT_LANGUAGES_V25,
+                "saaras:v3": SARVAM_STT_LANGUAGES_V3,
+            },
+        },
     )
 
 
@@ -1094,6 +1239,32 @@ class FastwebSTTConfiguration(BaseSTTConfiguration):
     )
 
 
+@register_stt
+class AzureSpeechSTTConfiguration(BaseSTTConfiguration):
+    model_config = AZURE_SPEECH_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.AZURE_SPEECH] = ServiceProviders.AZURE_SPEECH
+    model: str = Field(
+        default="latest_long",
+        description="Azure Speech recognition model (use 'latest_long' for continuous recognition).",
+        json_schema_extra={"examples": ["latest_long", "latest_short"]},
+    )
+    region: str = Field(
+        default="eastus",
+        description="Azure region for Speech Services (e.g. 'eastus', 'westeurope').",
+        json_schema_extra={
+            "examples": AZURE_SPEECH_REGIONS,
+        },
+    )
+    language: str = Field(
+        default="en-US",
+        description="BCP-47 language code for recognition.",
+        json_schema_extra={
+            "examples": AZURE_SPEECH_STT_LANGUAGES,
+            "allow_custom_input": True,
+        },
+    )
+
+
 STTConfig = Annotated[
     Union[
         DeepgramSTTConfiguration,
@@ -1105,6 +1276,7 @@ STTConfig = Annotated[
         AssemblyAISTTConfiguration,
         GladiaSTTConfiguration,
         FastwebSTTConfiguration,
+        AzureSpeechSTTConfiguration,
     ],
     Field(discriminator="provider"),
 ]
@@ -1143,10 +1315,36 @@ class OpenRouterEmbeddingsConfiguration(BaseEmbeddingsConfiguration):
         description="Override only if proxying OpenRouter through your own gateway.",
     )
 
+
+@register_embeddings
+class AzureOpenAIEmbeddingsConfiguration(BaseEmbeddingsConfiguration):
+    model_config = AZURE_OPENAI_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.AZURE] = ServiceProviders.AZURE
+    model: str = Field(
+        default="text-embedding-3-small",
+        description=(
+            "Azure OpenAI embedding deployment name. The deployment must return "
+            "1536-dimensional embeddings."
+        ),
+        json_schema_extra={
+            "examples": AZURE_EMBEDDING_MODELS,
+            "allow_custom_input": True,
+        },
+    )
+    endpoint: str = Field(
+        description="Azure OpenAI resource endpoint (e.g. https://<resource>.openai.azure.com).",
+    )
+    api_version: str = Field(
+        default="2024-02-15-preview",
+        description="Azure OpenAI API version for embeddings.",
+    )
+
+
 EmbeddingsConfig = Annotated[
     Union[
         OpenAIEmbeddingsConfiguration,
         OpenRouterEmbeddingsConfiguration,
+        AzureOpenAIEmbeddingsConfiguration,
     ],
     Field(discriminator="provider"),
 ]

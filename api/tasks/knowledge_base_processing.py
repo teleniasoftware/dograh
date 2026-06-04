@@ -9,7 +9,8 @@ from openai import AsyncOpenAI
 
 from api.db import db_client
 from api.db.models import KnowledgeBaseChunkModel
-from api.services.gen_ai import OpenAIEmbeddingService
+from api.services.configuration.registry import ServiceProviders
+from api.services.gen_ai import AzureOpenAIEmbeddingService, OpenAIEmbeddingService
 from api.services.storage import storage_fs
 from api.utils.url_security import validate_user_configured_service_url
 
@@ -278,6 +279,12 @@ async def process_knowledge_base_document(
                 "Embeddings provider not configured. Configure a local embeddings "
                 "model in Model Configurations > Embedding."
             )
+        embeddings_provider = getattr(user_config.embeddings, "provider", None)
+        embeddings_api_key = user_config.embeddings.api_key
+        embeddings_model = user_config.embeddings.model
+        embeddings_base_url = getattr(user_config.embeddings, "base_url", None)
+        embeddings_endpoint = getattr(user_config.embeddings, "endpoint", None)
+        embeddings_api_version = getattr(user_config.embeddings, "api_version", None)
 
         chunks = _chunk_text(full_text, max_tokens=max_tokens)
         if not chunks:
@@ -289,12 +296,21 @@ async def process_knowledge_base_document(
             user_config.llm,
         )
 
-        embedding_service = OpenAIEmbeddingService(
-            db_client=db_client,
-            api_key=user_config.embeddings.api_key,
-            model_id=user_config.embeddings.model,
-            base_url=getattr(user_config.embeddings, "base_url", None),
-        )
+        if embeddings_provider == ServiceProviders.AZURE.value and embeddings_endpoint:
+            embedding_service = AzureOpenAIEmbeddingService(
+                db_client=db_client,
+                api_key=embeddings_api_key,
+                endpoint=embeddings_endpoint,
+                model_id=embeddings_model or "text-embedding-3-small",
+                api_version=embeddings_api_version or "2024-02-15-preview",
+            )
+        else:
+            embedding_service = OpenAIEmbeddingService(
+                db_client=db_client,
+                api_key=embeddings_api_key,
+                model_id=embeddings_model or "text-embedding-3-small",
+                base_url=embeddings_base_url,
+            )
         texts_to_embed = [
             contextualized or chunk["text"]
             for chunk, contextualized in zip(chunks, contextualized_texts)

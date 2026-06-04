@@ -276,19 +276,19 @@ export type BatchRecordingUploadResponseSchema = {
 /**
  * CalculatorToolDefinition
  *
- * Tool definition for Calculator tools (no configuration needed).
+ * Tool definition for Calculator tools.
  */
 export type CalculatorToolDefinition = {
     /**
      * Schema Version
      *
-     * Schema version
+     * Schema version.
      */
     schema_version?: number;
     /**
      * Type
      *
-     * Tool type
+     * Tool type.
      */
     type: 'calculator';
 };
@@ -821,31 +821,43 @@ export type CreateTextChatSessionRequest = {
 /**
  * CreateToolRequest
  *
- * Request schema for creating a tool.
+ * Request schema for creating a reusable tool.
  */
 export type CreateToolRequest = {
     /**
      * Name
+     *
+     * Display name for the tool.
      */
     name: string;
     /**
      * Description
+     *
+     * Description shown to the agent when deciding whether to call it.
      */
     description?: string | null;
     /**
      * Category
+     *
+     * Tool category. Must match definition.type.
      */
-    category?: string;
+    category?: 'http_api' | 'end_call' | 'transfer_call' | 'calculator' | 'native' | 'integration' | 'mcp';
     /**
      * Icon
+     *
+     * Lucide icon identifier.
      */
     icon?: string | null;
     /**
      * Icon Color
+     *
+     * Hex color for the tool icon.
      */
     icon_color?: string | null;
     /**
      * Definition
+     *
+     * Typed tool definition.
      */
     definition: ({
         type: 'http_api';
@@ -1517,31 +1529,31 @@ export type EndCallConfig = {
     /**
      * Messagetype
      *
-     * Type of goodbye message
+     * Type of goodbye message.
      */
     messageType?: 'none' | 'custom' | 'audio';
     /**
      * Custommessage
      *
-     * Custom message to play before ending the call
+     * Custom message to play before ending the call.
      */
     customMessage?: string | null;
     /**
      * Audiorecordingid
      *
-     * Recording ID for audio goodbye message
+     * Recording ID for audio goodbye message.
      */
     audioRecordingId?: string | null;
     /**
      * Endcallreason
      *
-     * When enabled, LLM must provide a reason for ending the call. The reason is set as call disposition and added to call tags.
+     * When enabled, the model must provide a reason for ending the call. The reason is set as call disposition and added to call tags.
      */
     endCallReason?: boolean;
     /**
      * Endcallreasondescription
      *
-     * Description shown to the LLM for the reason parameter. Used only when endCallReason is enabled.
+     * Description shown to the model for the reason parameter. Used only when endCallReason is enabled.
      */
     endCallReasonDescription?: string | null;
 };
@@ -1555,17 +1567,17 @@ export type EndCallToolDefinition = {
     /**
      * Schema Version
      *
-     * Schema version
+     * Schema version.
      */
     schema_version?: number;
     /**
      * Type
      *
-     * Tool type
+     * Tool type.
      */
     type: 'end_call';
     /**
-     * End Call configuration
+     * End Call configuration.
      */
     config: EndCallConfig;
 };
@@ -1707,19 +1719,19 @@ export type HttpApiConfig = {
     /**
      * Method
      *
-     * HTTP method (GET, POST, PUT, PATCH, DELETE)
+     * HTTP method to use for the request.
      */
-    method: string;
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     /**
      * Url
      *
-     * Target URL
+     * Target HTTP or HTTPS URL.
      */
     url: string;
     /**
      * Headers
      *
-     * Static headers to include
+     * Static headers to include with every request.
      */
     headers?: {
         [key: string]: string;
@@ -1727,43 +1739,43 @@ export type HttpApiConfig = {
     /**
      * Credential Uuid
      *
-     * Reference to ExternalCredentialModel for auth
+     * Reference to an external credential for request authentication.
      */
     credential_uuid?: string | null;
     /**
      * Parameters
      *
-     * Parameters that the tool accepts from LLM
+     * Parameters the model must provide when calling this tool.
      */
     parameters?: Array<ToolParameter> | null;
     /**
      * Preset Parameters
      *
-     * Parameters injected by Dograh from fixed values or workflow context templates
+     * Parameters injected by Dograh from fixed values or workflow context templates.
      */
     preset_parameters?: Array<PresetToolParameter> | null;
     /**
      * Timeout Ms
      *
-     * Request timeout in milliseconds
+     * Request timeout in milliseconds.
      */
     timeout_ms?: number | null;
     /**
      * Custommessage
      *
-     * Custom message to play after tool execution
+     * Custom message to play after tool execution.
      */
     customMessage?: string | null;
     /**
      * Custommessagetype
      *
-     * Type of custom message: text or audio
+     * Type of custom message.
      */
     customMessageType?: 'text' | 'audio' | null;
     /**
      * Custommessagerecordingid
      *
-     * Recording ID for audio custom message
+     * Recording ID for an audio custom message.
      */
     customMessageRecordingId?: string | null;
 };
@@ -1777,17 +1789,17 @@ export type HttpApiToolDefinition = {
     /**
      * Schema Version
      *
-     * Schema version
+     * Schema version.
      */
     schema_version?: number;
     /**
      * Type
      *
-     * Tool type
+     * Tool type.
      */
     type: 'http_api';
     /**
-     * HTTP API configuration
+     * HTTP API configuration.
      */
     config: HttpApiConfig;
 };
@@ -1986,43 +1998,43 @@ export type McpRefreshResponse = {
 /**
  * McpToolConfig
  *
- * Configuration for an MCP tool definition.
+ * Configuration for a customer MCP server tool definition.
  */
 export type McpToolConfig = {
     /**
      * Transport
      *
-     * MCP transport protocol
+     * MCP transport protocol.
      */
     transport?: 'streamable_http';
     /**
      * Url
      *
-     * MCP server URL (must be http:// or https://)
+     * MCP server URL. Must use http:// or https://.
      */
     url: string;
     /**
      * Credential Uuid
      *
-     * Reference to ExternalCredentialModel for auth
+     * Reference to an external credential for MCP server auth.
      */
     credential_uuid?: string | null;
     /**
      * Tools Filter
      *
-     * Allowlist of MCP tool names to expose (empty = all tools)
+     * Allowlist of MCP tool names to expose. Empty exposes all tools.
      */
     tools_filter?: Array<string>;
     /**
      * Timeout Secs
      *
-     * Connection timeout in seconds
+     * Connection timeout in seconds.
      */
     timeout_secs?: number;
     /**
      * Sse Read Timeout Secs
      *
-     * SSE read timeout in seconds
+     * SSE read timeout in seconds.
      */
     sse_read_timeout_secs?: number;
     /**
@@ -2044,17 +2056,17 @@ export type McpToolDefinition = {
     /**
      * Schema Version
      *
-     * Schema version
+     * Schema version.
      */
     schema_version?: number;
     /**
      * Type
      *
-     * Tool type
+     * Tool type.
      */
     type: 'mcp';
     /**
-     * MCP server configuration
+     * MCP server configuration.
      */
     config: McpToolConfig;
 };
@@ -2385,25 +2397,25 @@ export type PresetToolParameter = {
     /**
      * Name
      *
-     * Parameter name (used as key in request body)
+     * Parameter name used as a key in the request body.
      */
     name: string;
     /**
      * Type
      *
-     * Parameter type: string, number, or boolean
+     * JSON type for the resolved value.
      */
-    type: string;
+    type: 'string' | 'number' | 'boolean' | 'object' | 'array';
     /**
      * Value Template
      *
-     * Fixed value or template, e.g. {{initial_context.phone_number}}
+     * Fixed value or template, e.g. {{initial_context.phone_number}}.
      */
     value_template: string;
     /**
      * Required
      *
-     * Whether the parameter must resolve to a non-empty value
+     * Whether the parameter must resolve to a non-empty value.
      */
     required?: boolean;
 };
@@ -3532,31 +3544,31 @@ export type TimeSlotResponse = {
 /**
  * ToolParameter
  *
- * A parameter that the tool accepts.
+ * A parameter that the tool accepts from the model at call time.
  */
 export type ToolParameter = {
     /**
      * Name
      *
-     * Parameter name (used as key in request body)
+     * Parameter name used as a key in the tool request body.
      */
     name: string;
     /**
      * Type
      *
-     * Parameter type: string, number, or boolean
+     * JSON type for the parameter value.
      */
-    type: string;
+    type: 'string' | 'number' | 'boolean' | 'object' | 'array';
     /**
      * Description
      *
-     * Description of what this parameter is for
+     * Description shown to the model for this parameter.
      */
     description: string;
     /**
      * Required
      *
-     * Whether this parameter is required
+     * Whether this parameter is required when the tool is called.
      */
     required?: boolean;
 };
@@ -3564,7 +3576,7 @@ export type ToolParameter = {
 /**
  * ToolResponse
  *
- * Response schema for a tool.
+ * Response schema for a reusable tool.
  */
 export type ToolResponse = {
     /**
@@ -3625,31 +3637,31 @@ export type TransferCallConfig = {
     /**
      * Destination
      *
-     * Phone number or SIP endpoint to transfer the call to (E.164 format e.g., +1234567890, or SIP endpoint e.g., PJSIP/1234)
+     * Phone number or SIP endpoint to transfer the call to, e.g. +1234567890 or PJSIP/1234.
      */
     destination: string;
     /**
      * Messagetype
      *
-     * Type of message to play before transfer
+     * Type of message to play before transfer.
      */
     messageType?: 'none' | 'custom' | 'audio';
     /**
      * Custommessage
      *
-     * Custom message to play before transferring the call
+     * Custom message to play before transferring.
      */
     customMessage?: string | null;
     /**
      * Audiorecordingid
      *
-     * Recording ID for audio message before transfer
+     * Recording ID for audio message before transfer.
      */
     audioRecordingId?: string | null;
     /**
      * Timeout
      *
-     * Maximum time in seconds to wait for destination to answer (5-120 seconds)
+     * Maximum seconds to wait for the destination to answer.
      */
     timeout?: number;
 };
@@ -3663,17 +3675,17 @@ export type TransferCallToolDefinition = {
     /**
      * Schema Version
      *
-     * Schema version
+     * Schema version.
      */
     schema_version?: number;
     /**
      * Type
      *
-     * Tool type
+     * Tool type.
      */
     type: 'transfer_call';
     /**
-     * Transfer Call configuration
+     * Transfer Call configuration.
      */
     config: TransferCallConfig;
 };
@@ -3913,7 +3925,7 @@ export type UpdateFolderRequest = {
 /**
  * UpdateToolRequest
  *
- * Request schema for updating a tool.
+ * Request schema for updating a reusable tool.
  */
 export type UpdateToolRequest = {
     /**
@@ -4465,6 +4477,12 @@ export type WorkflowRunResponseSchema = {
      * Cost Info
      */
     cost_info: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Usage Info
+     */
+    usage_info?: {
         [key: string]: unknown;
     } | null;
     /**

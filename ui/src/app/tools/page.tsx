@@ -51,6 +51,11 @@ import {
     type ToolCategory,
 } from "./config";
 
+type CreateToolRequestPayload = Omit<CreateToolRequest, "category"> & {
+    // The generated SDK category union is stale and still omits "tvox_callback".
+    category?: ToolCategory;
+};
+
 export default function ToolsPage() {
     const { user, getAccessToken, redirectToLogin, loading } = useAuth();
     const router = useRouter();
@@ -137,7 +142,7 @@ export default function ToolsPage() {
                 ? createMcpDefinition(mcpUrl, mcpCredentialUuid, mcpToolsFilter)
                 : createToolDefinition(newToolCategory);
 
-            const requestBody: CreateToolRequest = {
+            const requestBody: CreateToolRequestPayload = {
                 name: newToolName,
                 description: newToolDescription || undefined,
                 category: newToolCategory,
@@ -147,7 +152,7 @@ export default function ToolsPage() {
             };
 
             const response = await createToolApiV1ToolsPost({
-                body: requestBody,
+                body: requestBody as CreateToolRequest,
                 headers: {
                     Authorization: `Bearer ${accessToken}`,
                 },

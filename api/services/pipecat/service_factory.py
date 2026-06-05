@@ -26,6 +26,7 @@ from pipecat.services.deepgram.flux.stt import (
 from pipecat.services.deepgram.stt import DeepgramSTTService, DeepgramSTTSettings
 from pipecat.services.deepgram.tts import DeepgramTTSService, DeepgramTTSSettings
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService, ElevenLabsTTSSettings
+from pipecat.services.fastweb.llm import FastwebLLMService, FastwebLLMSettings
 from pipecat.services.fastweb.stt import FastwebSTTService
 from pipecat.services.fastweb.tts import (
     FastwebKokoroTTSService,
@@ -555,6 +556,7 @@ def create_llm_service_from_provider(
     location: str | None = None,
     credentials: str | None = None,
     temperature: float | None = None,
+    release_tag: str | None = None,
 ):
     """Create an LLM service from explicit provider/model/api_key.
 
@@ -629,6 +631,22 @@ def create_llm_service_from_provider(
                 model=model,
                 temperature=temperature if temperature is not None else 0.5,
             ),
+        )
+    elif provider == ServiceProviders.FASTWEB.value:
+        if not base_url:
+            raise HTTPException(
+                status_code=400, detail="base_url is required for FastWeb LLM provider"
+            )
+        _validate_runtime_service_url(base_url, "base_url")
+        if not api_key:
+            raise HTTPException(
+                status_code=400, detail="api_key is required for FastWeb LLM provider"
+            )
+        return FastwebLLMService(
+            api_key=api_key,
+            base_url=base_url,
+            release_tag=release_tag or "LATEST",
+            settings=FastwebLLMSettings(model=model),
         )
     else:
         raise HTTPException(status_code=400, detail=f"Invalid LLM provider {provider}")
@@ -831,5 +849,8 @@ def create_llm_service(user_config):
         kwargs["credentials"] = user_config.llm.credentials
     elif provider == ServiceProviders.SARVAM.value:
         kwargs["temperature"] = user_config.llm.temperature
+    elif provider == ServiceProviders.FASTWEB.value:
+        kwargs["base_url"] = user_config.llm.base_url
+        kwargs["release_tag"] = getattr(user_config.llm, "release_tag", None)
 
     return create_llm_service_from_provider(provider, model, api_key, **kwargs)

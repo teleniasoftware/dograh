@@ -43,6 +43,7 @@ from api.services.configuration.options import (
 from api.services.configuration.options.fastweb import (
     FASTWEB_KOKORO_TTS_LANGUAGES,
     FASTWEB_KOKORO_TTS_VOICES,
+    FASTWEB_LLM_MODELS,
     FASTWEB_STT_LANGUAGES,
 )
 from api.services.configuration.options.google import GOOGLE_VERTEX_MODELS
@@ -452,6 +453,28 @@ class SarvamLLMConfiguration(BaseLLMConfiguration):
         ),
     )
 
+
+@register_llm
+class FastwebLLMConfiguration(BaseLLMConfiguration):
+    model_config = FASTWEB_PROVIDER_MODEL_CONFIG
+    provider: Literal[ServiceProviders.FASTWEB] = ServiceProviders.FASTWEB
+    model: str = Field(
+        default="agent-centralino",
+        description="FastWeb AI Factory workflow deployment name.",
+        json_schema_extra={"examples": FASTWEB_LLM_MODELS, "allow_custom_input": True},
+    )
+    base_url: str = Field(
+        description=(
+            "FastWeb AI Factory agents API base URL "
+            "(for example, https://fastwebai-agents-api.fastedge.it)."
+        ),
+    )
+    release_tag: str = Field(
+        default="LATEST",
+        description="FastWeb workflow release tag.",
+    )
+
+
 OPENAI_REALTIME_MODELS = ["gpt-realtime-2"]
 OPENAI_REALTIME_VOICES = [
     "alloy",
@@ -672,6 +695,7 @@ LLMConfig = Annotated[
         AzureLLMService,
         AWSBedrockLLMConfiguration,
         SarvamLLMConfiguration,
+        FastwebLLMConfiguration,
     ],
     Field(discriminator="provider"),
 ]

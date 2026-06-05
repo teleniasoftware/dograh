@@ -3,6 +3,10 @@ FASTWEB_STT_LANGUAGES = (
     "en",
 )
 
+FASTWEB_LLM_MODELS = (
+    "agent-centralino",
+)
+
 FASTWEB_KOKORO_TTS_VOICES = (
     "im_nicola",
     "if_sara",

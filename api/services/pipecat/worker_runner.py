@@ -1,7 +1,7 @@
 import asyncio
 
+from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.worker import PipelineWorker
-from pipecat.workers.runner import WorkerRunner
 
 
 async def run_pipeline_worker(
@@ -12,7 +12,7 @@ async def run_pipeline_worker(
     auto_end: bool = True,
 ) -> None:
     """Run a pipeline worker through the v1.3 worker runner lifecycle."""
-    runner = WorkerRunner(handle_sigint=handle_sigint, handle_sigterm=handle_sigterm)
+    runner = PipelineRunner(handle_sigint=handle_sigint, handle_sigterm=handle_sigterm)
     await runner.add_workers(worker)
     await runner.run(auto_end=auto_end)
 

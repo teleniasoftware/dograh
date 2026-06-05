@@ -26,6 +26,27 @@ from pipecat.processors.audio.audio_buffer_processor import AudioBufferProcessor
 from pipecat.utils.enums import EndTaskReason
 
 
+def _get_turn_trace_id(turn_trace_observer) -> str | None:
+    """Return the active OTEL trace id for a Pipecat turn observer, if available."""
+    if not turn_trace_observer:
+        return None
+
+    get_trace_id = getattr(turn_trace_observer, "get_trace_id", None)
+    if callable(get_trace_id):
+        return get_trace_id()
+
+    conversation_span = getattr(turn_trace_observer, "_conversation_span", None)
+    if not conversation_span:
+        return None
+
+    span_context = conversation_span.get_span_context()
+    trace_id = getattr(span_context, "trace_id", None)
+    if not trace_id:
+        return None
+
+    return format(trace_id, "032x")
+
+
 async def _capture_call_event(
     workflow_run_id: int,
     user_provider_id: str | None,
@@ -232,7 +253,7 @@ def register_event_handlers(
 
         # Add trace URL if available (must be done before conversation tracing ends)
         if task.turn_trace_observer:
-            trace_id = task.turn_trace_observer.get_trace_id()
+            trace_id = _get_turn_trace_id(task.turn_trace_observer)
             if trace_id:
                 trace_url = get_trace_url(trace_id)
                 if trace_url:

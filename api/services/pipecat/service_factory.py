@@ -240,11 +240,17 @@ def create_stt_service(
     elif user_config.stt.provider == ServiceProviders.FASTWEB.value:
         language = getattr(user_config.stt, "language", None) or "it"
         base_url = getattr(user_config.stt, "base_url", None)
+        api_key = getattr(user_config.stt, "api_key", None)
         if not base_url:
             raise HTTPException(
                 status_code=400, detail="base_url is required for FastWeb STT provider"
             )
+        if not api_key:
+            raise HTTPException(
+                status_code=400, detail="api_key is required for FastWeb STT provider"
+            )
         return FastwebSTTService(
+            api_key=api_key,
             base_url=base_url,
             language=language,
             sample_rate=audio_config.transport_in_sample_rate,

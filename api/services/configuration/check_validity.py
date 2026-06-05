@@ -118,15 +118,13 @@ class UserConfigurationValidator:
                 except ValueError as e:
                     return [{"model": service_name, "message": str(e)}]
 
-        # FastWeb STT doesn't require an API key; TTS requires a Bearer token
+        # FastWeb voice services use Bearer-token WebSocket auth.
         if provider == ServiceProviders.FASTWEB.value:
-            if service_name == "stt":
-                return []
             if not getattr(service_config, "api_key", None):
                 return [
                     {
                         "model": service_name,
-                        "message": f"API key is required for {provider} TTS",
+                        "message": f"API key is required for {provider} {service_name.upper()}",
                     }
                 ]
             return []

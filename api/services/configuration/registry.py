@@ -1235,7 +1235,7 @@ class FastwebSTTConfiguration(BaseSTTConfiguration):
     )
     api_key: str | list[str] | None = Field(
         default=None,
-        description="Not required for FastWeb STT (pre-authenticated endpoint). Leave blank.",
+        description="Bearer token used to authenticate the FastWeb STT WebSocket.",
     )
 
 

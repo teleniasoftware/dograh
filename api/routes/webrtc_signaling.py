@@ -17,6 +17,7 @@ TURN Authentication:
 import asyncio
 import ipaddress
 import os
+import uuid
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Dict, List, Optional
@@ -46,6 +47,10 @@ from api.services.pipecat.ws_sender_registry import (
     unregister_ws_sender,
 )
 from api.services.quota_service import check_dograh_quota
+from api.services.sip.webrtc_bridge import (
+    SIPWebRTCTestBridge,
+    normalize_custom_headers,
+)
 
 router = APIRouter(prefix="/ws")
 
@@ -497,6 +502,160 @@ class SignalingManager:
 signaling_manager = SignalingManager()
 
 
+class SIPTestSignalingManager:
+    """Manages browser WebRTC sessions bridged into local SIP test calls."""
+
+    def __init__(self):
+        self._bridges: Dict[str, SIPWebRTCTestBridge] = {}
+
+    async def handle_websocket(
+        self,
+        websocket: WebSocket,
+        workflow_id: int,
+        workflow_uuid: str,
+        organization_id: int,
+        user: UserModel,
+    ):
+        await websocket.accept()
+        connection_id = f"sip-test:{workflow_id}:{user.id}:{uuid.uuid4().hex}"
+
+        try:
+            while True:
+                message = await websocket.receive_json()
+                await self._handle_message(
+                    websocket,
+                    message,
+                    connection_id,
+                    workflow_id,
+                    workflow_uuid,
+                    organization_id,
+                    user,
+                )
+        except WebSocketDisconnect:
+            logger.info(f"SIP test WebSocket disconnected for {connection_id}")
+        except Exception as e:
+            logger.error(f"SIP test WebSocket error for {connection_id}: {e}")
+        finally:
+            bridge = self._bridges.pop(connection_id, None)
+            if bridge:
+                await bridge.close()
+
+    async def _handle_message(
+        self,
+        ws: WebSocket,
+        message: dict,
+        connection_id: str,
+        workflow_id: int,
+        workflow_uuid: str,
+        organization_id: int,
+        user: UserModel,
+    ):
+        msg_type = message.get("type")
+        payload = message.get("payload", {})
+
+        if msg_type == "offer":
+            await self._handle_offer(
+                ws,
+                payload,
+                connection_id,
+                workflow_id,
+                workflow_uuid,
+                organization_id,
+                user,
+            )
+        elif msg_type == "ice-candidate":
+            await self._handle_ice_candidate(payload, connection_id)
+
+    async def _handle_offer(
+        self,
+        ws: WebSocket,
+        payload: dict,
+        connection_id: str,
+        workflow_id: int,
+        workflow_uuid: str,
+        organization_id: int,
+        user: UserModel,
+    ):
+        try:
+            custom_headers = normalize_custom_headers(payload.get("sip_headers"))
+        except ValueError as exc:
+            await ws.send_json(
+                {
+                    "type": "error",
+                    "payload": {
+                        "error_type": "invalid_sip_headers",
+                        "message": str(exc),
+                    },
+                }
+            )
+            return
+
+        async def ws_sender(message: dict):
+            if ws.application_state == WebSocketState.CONNECTED:
+                await ws.send_json(message)
+
+        bridge = SIPWebRTCTestBridge(
+            workflow_id=workflow_id,
+            workflow_uuid=workflow_uuid,
+            organization_id=organization_id,
+            user_id=user.id,
+            test_session_id=uuid.uuid4().hex,
+            custom_headers=custom_headers,
+            sender=ws_sender,
+            ice_servers=get_ice_servers(user_id=str(user.id)),
+        )
+        self._bridges[connection_id] = bridge
+
+        try:
+            answer = await bridge.handle_offer(payload)
+        except Exception as exc:
+            logger.error(f"Failed to start SIP test bridge: {exc}", exc_info=True)
+            await bridge.close()
+            self._bridges.pop(connection_id, None)
+            await ws.send_json(
+                {
+                    "type": "error",
+                    "payload": {
+                        "error_type": "sip_test_failed",
+                        "message": str(exc),
+                    },
+                }
+            )
+            return
+
+        await ws.send_json(
+            {
+                "type": "answer",
+                "payload": {
+                    **answer,
+                    "sdp": filter_outbound_sdp(answer["sdp"]),
+                },
+            }
+        )
+
+    async def _handle_ice_candidate(self, payload: dict, connection_id: str):
+        bridge = self._bridges.get(connection_id)
+        if not bridge:
+            logger.warning(f"No SIP test bridge found for {connection_id}")
+            return
+
+        candidate_data = payload.get("candidate")
+        if not candidate_data:
+            return
+
+        candidate_str = candidate_data.get("candidate", "")
+        if not _keep_candidate(candidate_str, ICE_INBOUND_POLICY):
+            return
+
+        candidate = candidate_from_sdp(candidate_str)
+        candidate.sdpMid = candidate_data.get("sdpMid")
+        candidate.sdpMLineIndex = candidate_data.get("sdpMLineIndex")
+        await bridge.add_ice_candidate(candidate)
+
+
+sip_test_signaling_manager = SIPTestSignalingManager()
+
+
 @router.websocket("/signaling/{workflow_id}/{workflow_run_id}")
 async def signaling_websocket(
     websocket: WebSocket,
@@ -512,6 +671,27 @@ async def signaling_websocket(
 
     await signaling_manager.handle_websocket(
         websocket, workflow_id, workflow_run_id, user
+    )
+
+
+@router.websocket("/sip-test/{workflow_id}")
+async def sip_test_signaling_websocket(
+    websocket: WebSocket,
+    workflow_id: int,
+    user: UserModel = Depends(get_user_ws),
+):
+    """WebSocket endpoint for browser WebRTC bridged into a local SIP test call."""
+    workflow = await db_client.get_workflow(
+        workflow_id, organization_id=user.selected_organization_id
+    )
+    if not workflow:
+        logger.warning(f"workflow {workflow_id} not found for user {user.id}")
+        raise HTTPException(status_code=404, detail="workflow_not_found")
+    if not workflow.workflow_uuid:
+        raise HTTPException(status_code=400, detail="workflow_uuid_missing")
+
+    await sip_test_signaling_manager.handle_websocket(
+        websocket, workflow_id, workflow.workflow_uuid, workflow.organization_id, user
     )
 
 

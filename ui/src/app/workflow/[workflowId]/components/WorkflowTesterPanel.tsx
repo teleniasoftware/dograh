@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, MessageSquareText, Mic, Phone, RefreshCw, X } from "lucide-react";
+import { Loader2, MessageSquareText, Mic, Phone, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import posthog from "posthog-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { createWorkflowRunApiV1WorkflowWorkflowIdRunsPost } from "@/client/sdk.gen";
 import { OnboardingTooltip } from "@/components/onboarding/OnboardingTooltip";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PostHogEvent } from "@/constants/posthog-events";
@@ -22,6 +23,25 @@ import { ManualTextChatPanel } from "./workflow-tester/ManualTextChatPanel";
 import { ChatModeToggle, DisabledNotice, EmptyState } from "./workflow-tester/shared";
 import type { WorkflowRuntimeNodeTransition } from "./workflow-tester/types";
 import { extractSdkErrorMessage, getErrorMessage } from "./workflow-tester/utils";
+
+type AudioTestMode = "webrtc" | "sip";
+type SipHeader = { key: string; value: string };
+
+const SIP_HEADER_NAME_RE = /^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/;
+const RESERVED_SIP_HEADERS = new Set([
+    "via",
+    "from",
+    "to",
+    "call-id",
+    "cseq",
+    "contact",
+    "max-forwards",
+    "user-agent",
+    "allow",
+    "content-type",
+    "content-length",
+    "x-dograh-sip-test-session",
+]);
 
 interface WorkflowTesterPanelProps {
     workflowId: number;
@@ -51,10 +71,13 @@ export function WorkflowTesterPanel({
     const { isAuthenticated, loading: authLoading, getAccessToken } = auth;
     const [accessToken, setAccessToken] = useState<string | null>(null);
     const [activeMode, setActiveMode] = useState<"audio" | "text">("audio");
+    const [audioTestMode, setAudioTestMode] = useState<AudioTestMode>("webrtc");
     const [chatMode, setChatMode] = useState<"manual" | "simulated">("manual");
     const [chatSessionKey, setChatSessionKey] = useState(0);
     const [chatActive, setChatActive] = useState(false);
     const [voiceRunId, setVoiceRunId] = useState<number | null>(null);
+    const [sipTestActive, setSipTestActive] = useState(false);
+    const [sipHeaders, setSipHeaders] = useState<SipHeader[]>([{ key: "", value: "" }]);
     const [creatingVoiceRun, setCreatingVoiceRun] = useState(false);
     const [tokenReady, setTokenReady] = useState(false);
     const runTestButtonRef = useRef<HTMLButtonElement>(null);
@@ -128,6 +151,45 @@ export function WorkflowTesterPanel({
         }
     }, [accessToken, disabled, markActionCompleted, markTooltipSeen, workflowId]);
 
+    const updateSipHeader = useCallback((index: number, patch: Partial<SipHeader>) => {
+        setSipHeaders((headers) => headers.map((header, idx) => (
+            idx === index ? { ...header, ...patch } : header
+        )));
+    }, []);
+
+    const addSipHeader = useCallback(() => {
+        setSipHeaders((headers) => [...headers, { key: "", value: "" }]);
+    }, []);
+
+    const removeSipHeader = useCallback((index: number) => {
+        setSipHeaders((headers) => (
+            headers.length === 1
+                ? [{ key: "", value: "" }]
+                : headers.filter((_, idx) => idx !== index)
+        ));
+    }, []);
+
+    const normalizedSipHeaders = sipHeaders
+        .map((header) => ({ key: header.key.trim(), value: header.value.trim() }))
+        .filter((header) => header.key || header.value);
+    const invalidSipHeader = normalizedSipHeaders.find((header) => (
+        !header.key ||
+        !SIP_HEADER_NAME_RE.test(header.key) ||
+        RESERVED_SIP_HEADERS.has(header.key.toLowerCase()) ||
+        header.value.includes("\n") ||
+        header.value.includes("\r")
+    ));
+    const startSipTest = useCallback(() => {
+        if (disabled || invalidSipHeader) return;
+        markActionCompleted("web_call_started");
+        posthog.capture(PostHogEvent.WEB_CALL_INITIATED, {
+            workflow_id: workflowId,
+            source: "workflow_editor_sip",
+        });
+        setSipTestActive(true);
+        setActiveMode("audio");
+    }, [disabled, invalidSipHeader, markActionCompleted, workflowId]);
+
     const authUnavailableReason = tokenReady && !accessToken
         ? "Authentication is required before testing can start."
         : null;
@@ -187,40 +249,118 @@ export function WorkflowTesterPanel({
                             <DisabledNotice
                                 reason={authUnavailableReason ?? "Authentication is required before browser tests can start."}
                             />
-                        ) : voiceRunId ? (
+                        ) : voiceRunId || sipTestActive ? (
                             <EmbeddedVoiceTester
                                 workflowId={workflowId}
-                                workflowRunId={voiceRunId}
+                                workflowRunId={voiceRunId ?? undefined}
                                 initialContextVariables={initialContextVariables}
                                 accessToken={accessToken}
-                                onReset={() => setVoiceRunId(null)}
+                                onReset={() => {
+                                    setVoiceRunId(null);
+                                    setSipTestActive(false);
+                                }}
                                 onNodeTransition={onRuntimeNodeTransition}
+                                signalingMode={sipTestActive ? "sip" : "webrtc"}
+                                sipHeaders={normalizedSipHeaders}
                             />
                         ) : (
                             <>
                                 {effectiveDisabledReason ? <DisabledNotice reason={effectiveDisabledReason} /> : null}
+                                <div className="inline-flex w-full items-center gap-0.5 rounded-md border border-border/70 bg-muted/40 p-0.5">
+                                    {([
+                                        { id: "webrtc", label: "WebRTC" },
+                                        { id: "sip", label: "SIP" },
+                                    ] as const).map((option) => {
+                                        const active = option.id === audioTestMode;
+                                        return (
+                                            <button
+                                                key={option.id}
+                                                type="button"
+                                                onClick={() => setAudioTestMode(option.id)}
+                                                className={cn(
+                                                    "flex-1 rounded-[5px] px-2.5 py-1.5 text-xs font-medium transition",
+                                                    active
+                                                        ? "bg-background text-foreground shadow-xs"
+                                                        : "text-muted-foreground hover:text-foreground",
+                                                )}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                                 <EmptyState
                                     icon={<Phone className="h-7 w-7" />}
-                                    title="Call this agent in the browser"
-                                    description="Test the agent over a voice call. Some telephony-only tools, like call transfer, are not yet supported here."
+                                    title={audioTestMode === "sip" ? "Call this agent through SIP" : "Call this agent in the browser"}
+                                    description={audioTestMode === "sip"
+                                        ? "Test the SIP ingress through a browser audio bridge and send custom SIP headers with the INVITE."
+                                        : "Test the agent over a voice call. Some telephony-only tools, like call transfer, are not yet supported here."}
                                     action={
-                                        <Button
-                                            ref={runTestButtonRef}
-                                            onClick={createVoiceRun}
-                                            disabled={creatingVoiceRun || testerBlocked}
-                                        >
-                                            {creatingVoiceRun ? (
-                                                <>
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                    Starting test...
-                                                </>
-                                            ) : (
-                                                <>
+                                        audioTestMode === "sip" ? (
+                                            <div className="space-y-3">
+                                                <div className="space-y-2">
+                                                    {sipHeaders.map((header, index) => (
+                                                        <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                                                            <Input
+                                                                value={header.key}
+                                                                onChange={(event) => updateSipHeader(index, { key: event.target.value })}
+                                                                placeholder="Header"
+                                                                className="h-9"
+                                                            />
+                                                            <Input
+                                                                value={header.value}
+                                                                onChange={(event) => updateSipHeader(index, { value: event.target.value })}
+                                                                placeholder="Value"
+                                                                className="h-9"
+                                                            />
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => removeSipHeader(index)}
+                                                                aria-label="Remove SIP header"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                    <Button type="button" variant="ghost" size="sm" onClick={addSipHeader}>
+                                                        <Plus className="h-4 w-4" />
+                                                        Add Header
+                                                    </Button>
+                                                </div>
+                                                {invalidSipHeader ? (
+                                                    <p className="text-xs text-destructive">
+                                                        Header names must be valid non-reserved SIP tokens.
+                                                    </p>
+                                                ) : null}
+                                                <Button
+                                                    onClick={startSipTest}
+                                                    disabled={testerBlocked || !!invalidSipHeader}
+                                                >
                                                     <Phone className="h-4 w-4" />
-                                                    Run Test
-                                                </>
-                                            )}
-                                        </Button>
+                                                    Run SIP Test
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <Button
+                                                ref={runTestButtonRef}
+                                                onClick={createVoiceRun}
+                                                disabled={creatingVoiceRun || testerBlocked}
+                                            >
+                                                {creatingVoiceRun ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                        Starting test...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Phone className="h-4 w-4" />
+                                                        Run Test
+                                                    </>
+                                                )}
+                                            </Button>
+                                        )
                                     }
                                 />
                             </>

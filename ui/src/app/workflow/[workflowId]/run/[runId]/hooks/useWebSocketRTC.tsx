@@ -13,13 +13,23 @@ import { useDeviceInputs } from "./useDeviceInputs";
 
 interface UseWebSocketRTCProps {
     workflowId: number;
-    workflowRunId: number;
+    workflowRunId?: number;
     accessToken: string | null;
     initialContextVariables?: Record<string, string> | null;
     onNodeTransition?: (transition: ConversationNodeTransitionItem) => void;
+    signalingMode?: 'webrtc' | 'sip';
+    sipHeaders?: Array<{ key: string; value: string }>;
 }
 
-export const useWebSocketRTC = ({ workflowId, workflowRunId, accessToken, initialContextVariables, onNodeTransition }: UseWebSocketRTCProps) => {
+export const useWebSocketRTC = ({
+    workflowId,
+    workflowRunId,
+    accessToken,
+    initialContextVariables,
+    onNodeTransition,
+    signalingMode = 'webrtc',
+    sipHeaders = [],
+}: UseWebSocketRTCProps) => {
     const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'failed'>('idle');
     const [connectionActive, setConnectionActive] = useState(false);
     const [isCompleted, setIsCompleted] = useState(false);
@@ -85,8 +95,11 @@ export const useWebSocketRTC = ({ workflowId, workflowRunId, accessToken, initia
         const baseUrl = client.getConfig().baseUrl || 'http://127.0.0.1:8000';
         // Convert HTTP to WS protocol
         const wsUrl = baseUrl.replace(/^http/, 'ws');
+        if (signalingMode === 'sip') {
+            return `${wsUrl}/api/v1/ws/sip-test/${workflowId}?token=${accessToken}`;
+        }
         return `${wsUrl}/api/v1/ws/signaling/${workflowId}/${workflowRunId}?token=${accessToken}`;
-    }, [workflowId, workflowRunId, accessToken]);
+    }, [workflowId, workflowRunId, accessToken, signalingMode]);
 
     const createPeerConnection = () => {
         // Build ICE servers list
@@ -292,7 +305,14 @@ export const useWebSocketRTC = ({ workflowId, workflowRunId, accessToken, initia
                             } else {
                                 // Log other errors as actual errors
                                 logger.error('Server error:', message.payload);
+                                setPermissionError(message.payload?.message || 'Server error');
+                                setConnectionStatus('failed');
+                                setConnectionActive(false);
                             }
+                            break;
+
+                        case 'sip-test-run-started':
+                            logger.info(`SIP test workflow run started: ${message.payload?.workflow_run_id}`);
                             break;
 
                         case 'rtf-user-transcription': {
@@ -498,7 +518,7 @@ export const useWebSocketRTC = ({ workflowId, workflowRunId, accessToken, initia
                 }
             };
         });
-    }, [getWebSocketUrl, connectionActive, isCompleted]);
+    }, [getWebSocketUrl, connectionActive, isCompleted, setPermissionError]);
 
     const negotiate = async () => {
         const pc = pcRef.current;
@@ -532,7 +552,8 @@ export const useWebSocketRTC = ({ workflowId, workflowRunId, accessToken, initia
                     pc_id: pc_id.current,
                     workflow_id: workflowId,
                     workflow_run_id: workflowRunId,
-                    call_context_vars: initialContext
+                    call_context_vars: initialContext,
+                    sip_headers: sipHeaders,
                 }
             };
 
@@ -547,6 +568,11 @@ export const useWebSocketRTC = ({ workflowId, workflowRunId, accessToken, initia
 
     const start = async () => {
         if (isStarting || !accessToken) return;
+        if (signalingMode === 'webrtc' && !workflowRunId) {
+            setConnectionStatus('failed');
+            setPermissionError('Workflow run is required for browser audio tests');
+            return;
+        }
         setIsStarting(true);
         setConnectionStatus('connecting');
 

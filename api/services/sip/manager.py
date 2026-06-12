@@ -13,9 +13,14 @@ from pipecat.utils.run_context import set_current_org_id, set_current_run_id
 from api.db import db_client
 from api.enums import CallType, WorkflowRunMode, WorkflowRunState, WorkflowStatus
 from api.services.pipecat.audio_config import AudioConfig
+from api.services.pipecat.ws_sender_registry import (
+    register_ws_sender,
+    unregister_ws_sender,
+)
 from api.services.quota_service import check_dograh_quota_by_user_id
 from api.services.sip.call_info import SIPCallInfo
 from api.services.sip.server import SIPServer
+from api.services.sip.test_registry import get_sip_test_sender, get_sip_test_session
 from api.services.sip.transport import SIPTransport
 
 
@@ -25,6 +30,8 @@ class _PreflightTarget:
     workflow_uuid: str
     organization_id: int
     user_id: int
+    sip_test_session_id: str | None = None
+    use_draft: bool = False
 
 
 @dataclass
@@ -33,6 +40,7 @@ class _ActiveSession:
     workflow_run_id: int
     transport: SIPTransport
     task: asyncio.Task
+    sip_test_session_id: str | None = None
 
 
 class SIPIngressManager:
@@ -101,6 +109,42 @@ class SIPIngressManager:
         if not agent_uuid:
             return 404
 
+        sip_test_session_id = headers.get("x-dograh-sip-test-session") or None
+        sip_test_session = (
+            get_sip_test_session(sip_test_session_id) if sip_test_session_id else None
+        )
+        if sip_test_session:
+            if sip_test_session.workflow_uuid != agent_uuid:
+                logger.warning(
+                    "SIP test session {} rejected: callee {} did not match workflow {}",
+                    sip_test_session_id,
+                    agent_uuid,
+                    sip_test_session.workflow_uuid,
+                )
+                return 404
+
+            quota = await check_dograh_quota_by_user_id(
+                sip_test_session.user_id,
+                workflow_id=sip_test_session.workflow_id,
+            )
+            if not quota.has_quota:
+                logger.warning(
+                    "SIP test callee {} rejected for quota: {}",
+                    agent_uuid,
+                    quota.error_message,
+                )
+                return 402
+
+            self._preflight[call_id] = _PreflightTarget(
+                workflow_id=sip_test_session.workflow_id,
+                workflow_uuid=sip_test_session.workflow_uuid,
+                organization_id=sip_test_session.organization_id,
+                user_id=sip_test_session.user_id,
+                sip_test_session_id=sip_test_session_id,
+                use_draft=True,
+            )
+            return None
+
         workflow = await db_client.get_workflow_by_uuid_unscoped(agent_uuid)
         if not workflow:
             logger.warning("SIP callee {} did not match any workflow_uuid", agent_uuid)
@@ -135,6 +179,7 @@ class SIPIngressManager:
             workflow_uuid=workflow.workflow_uuid,
             organization_id=workflow.organization_id,
             user_id=workflow.user_id,
+            sip_test_session_id=sip_test_session_id,
         )
         return None
 
@@ -164,6 +209,7 @@ class SIPIngressManager:
             return
 
         try:
+            sip_headers = dict(info.all_headers or {})
             workflow_run = await db_client.create_workflow_run(
                 workflow_run_name,
                 target.workflow_id,
@@ -178,7 +224,8 @@ class SIPIngressManager:
                     "called_number": info.callee_number,
                     "direction": "inbound",
                     "sip_call_id": info.sip_call_id,
-                    "sip_headers": info.all_headers,
+                    "sip": sip_headers,
+                    "sip_headers": sip_headers,
                 },
                 gathered_context={"call_id": info.sip_call_id},
                 logs={
@@ -191,7 +238,7 @@ class SIPIngressManager:
                         "rtp_remote_addr": list(info.rtp_remote_addr),
                     }
                 },
-                use_draft=False,
+                use_draft=getattr(target, "use_draft", False),
                 organization_id=target.organization_id,
             )
 
@@ -201,6 +248,20 @@ class SIPIngressManager:
                 run_id=workflow_run.id,
                 state=WorkflowRunState.RUNNING.value,
             )
+            sip_test_session_id = getattr(target, "sip_test_session_id", None)
+            if sip_test_session_id:
+                sender = get_sip_test_sender(sip_test_session_id)
+                if sender:
+                    register_ws_sender(workflow_run.id, sender)
+                    await sender(
+                        {
+                            "type": "sip-test-run-started",
+                            "payload": {
+                                "workflow_run_id": workflow_run.id,
+                                "sip_call_id": info.sip_call_id,
+                            },
+                        }
+                    )
         except Exception as e:
             logger.error(
                 "Failed to create SIP workflow run for call {}: {}",
@@ -240,6 +301,7 @@ class SIPIngressManager:
                 workflow_run_id=workflow_run.id,
                 transport=transport,
                 task=task,
+                sip_test_session_id=getattr(target, "sip_test_session_id", None),
             )
 
         logger.info(
@@ -274,6 +336,7 @@ class SIPIngressManager:
         except Exception as e:
             logger.error("SIP pipeline failed for call {}: {}", call_id, e, exc_info=True)
         finally:
+            unregister_ws_sender(workflow_run_id)
             self._ending_calls.add(call_id)
             dialog = self._server.get_dialog(call_id)
             if dialog:

@@ -5,6 +5,11 @@ from unittest.mock import AsyncMock, Mock, patch
 from api.enums import WorkflowRunMode
 from api.services.sip.call_info import SIPCallInfo
 from api.services.sip.manager import SIPIngressManager
+from api.services.sip.test_registry import (
+    register_sip_test_session,
+    unregister_sip_test_sender,
+)
+from api.utils.template_renderer import render_template
 
 
 def _workflow(**overrides):
@@ -133,6 +138,57 @@ def test_established_call_creates_inbound_sip_run():
         assert create_kwargs["call_type"].value == "inbound"
         assert create_kwargs["initial_context"]["agent_uuid"] == workflow.workflow_uuid
         assert create_kwargs["initial_context"]["sip_call_id"] == "sip-call-1"
+        assert create_kwargs["initial_context"]["sip"]["x-test"] == "yes"
+        assert create_kwargs["initial_context"]["sip_headers"]["x-test"] == "yes"
+        assert (
+            render_template(
+                "{{sip.x-test}}",
+                create_kwargs["initial_context"],
+            )
+            == "yes"
+        )
+        assert create_kwargs["use_draft"] is False
         assert create_kwargs["gathered_context"]["call_id"] == "sip-call-1"
+
+    asyncio.run(run())
+
+
+def test_sip_test_call_uses_registered_session_and_draft_definition():
+    async def run():
+        manager = SIPIngressManager()
+        quota = SimpleNamespace(has_quota=True, error_message="")
+
+        async def sender(_message):
+            return None
+
+        register_sip_test_session(
+            "test-session-1",
+            workflow_id=33,
+            workflow_uuid="agent-uuid-123",
+            organization_id=11,
+            user_id=99,
+            sender=sender,
+        )
+
+        try:
+            with patch(
+                "api.services.sip.manager.check_dograh_quota_by_user_id",
+                new=AsyncMock(return_value=quota),
+            ) as quota_mock:
+                rejection = await manager._on_pre_call(
+                    "agent-uuid-123",
+                    "sip-call-1",
+                    {"x-dograh-sip-test-session": "test-session-1"},
+                )
+
+            assert rejection is None
+            target = manager._preflight["sip-call-1"]
+            assert target.workflow_id == 33
+            assert target.organization_id == 11
+            assert target.user_id == 99
+            assert target.use_draft is True
+            quota_mock.assert_awaited_once_with(99, workflow_id=33)
+        finally:
+            unregister_sip_test_sender("test-session-1")
 
     asyncio.run(run())

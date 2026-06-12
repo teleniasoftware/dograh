@@ -13,11 +13,13 @@ import type { WorkflowRuntimeNodeTransition } from "./types";
 
 interface EmbeddedVoiceTesterProps {
     workflowId: number;
-    workflowRunId: number;
+    workflowRunId?: number;
     initialContextVariables?: Record<string, string>;
     accessToken: string;
     onReset: () => void;
     onNodeTransition?: (transition: WorkflowRuntimeNodeTransition) => void;
+    signalingMode?: "webrtc" | "sip";
+    sipHeaders?: Array<{ key: string; value: string }>;
 }
 
 export function EmbeddedVoiceTester({
@@ -27,6 +29,8 @@ export function EmbeddedVoiceTester({
     accessToken,
     onReset,
     onNodeTransition,
+    signalingMode = "webrtc",
+    sipHeaders,
 }: EmbeddedVoiceTesterProps) {
     const router = useRouter();
     const {
@@ -52,6 +56,8 @@ export function EmbeddedVoiceTester({
         accessToken,
         initialContextVariables,
         onNodeTransition,
+        signalingMode,
+        sipHeaders,
     });
     const autoStartedRef = useRef(false);
 

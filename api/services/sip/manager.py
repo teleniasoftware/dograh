@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
@@ -41,6 +42,35 @@ class _ActiveSession:
     transport: SIPTransport
     task: asyncio.Task
     sip_test_session_id: str | None = None
+
+
+def _build_sip_template_context(headers: dict[str, Any]) -> dict[str, str]:
+    """Expose SIP headers through both raw and template-friendly keys."""
+
+    context_headers: dict[str, str] = {}
+
+    for raw_key, raw_value in headers.items():
+        key = str(raw_key).strip().lower()
+        if not key:
+            continue
+
+        value = str(raw_value)
+        aliases = [key]
+
+        normalized_key = re.sub(r"[^a-z0-9]+", "_", key).strip("_")
+        if normalized_key:
+            aliases.append(normalized_key)
+
+        if key.startswith("x-"):
+            aliases.append(key[2:])
+        if normalized_key.startswith("x_"):
+            aliases.append(normalized_key[2:])
+
+        for alias in aliases:
+            if alias and alias not in context_headers:
+                context_headers[alias] = value
+
+    return context_headers
 
 
 class SIPIngressManager:
@@ -210,6 +240,7 @@ class SIPIngressManager:
 
         try:
             sip_headers = dict(info.all_headers or {})
+            sip_context_headers = _build_sip_template_context(sip_headers)
             workflow_run = await db_client.create_workflow_run(
                 workflow_run_name,
                 target.workflow_id,
@@ -224,7 +255,7 @@ class SIPIngressManager:
                     "called_number": info.callee_number,
                     "direction": "inbound",
                     "sip_call_id": info.sip_call_id,
-                    "sip": sip_headers,
+                    "sip": sip_context_headers,
                     "sip_headers": sip_headers,
                 },
                 gathered_context={"call_id": info.sip_call_id},

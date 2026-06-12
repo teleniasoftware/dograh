@@ -139,6 +139,7 @@ def test_established_call_creates_inbound_sip_run():
         assert create_kwargs["initial_context"]["agent_uuid"] == workflow.workflow_uuid
         assert create_kwargs["initial_context"]["sip_call_id"] == "sip-call-1"
         assert create_kwargs["initial_context"]["sip"]["x-test"] == "yes"
+        assert create_kwargs["initial_context"]["sip"]["test"] == "yes"
         assert create_kwargs["initial_context"]["sip_headers"]["x-test"] == "yes"
         assert (
             render_template(
@@ -149,6 +150,58 @@ def test_established_call_creates_inbound_sip_run():
         )
         assert create_kwargs["use_draft"] is False
         assert create_kwargs["gathered_context"]["call_id"] == "sip-call-1"
+
+    asyncio.run(run())
+
+
+def test_established_call_exposes_template_friendly_sip_header_aliases():
+    async def run():
+        manager = SIPIngressManager()
+        workflow = _workflow()
+        manager._preflight["sip-call-2"] = SimpleNamespace(
+            workflow_id=workflow.id,
+            workflow_uuid=workflow.workflow_uuid,
+            organization_id=workflow.organization_id,
+            user_id=workflow.user_id,
+        )
+        manager._server.get_dialog = Mock(
+            return_value=SimpleNamespace(rtp_session=object())
+        )
+        manager._run_session = AsyncMock()
+        workflow_run = SimpleNamespace(id=502)
+        info = SIPCallInfo(
+            session_id=2,
+            call_uuid="sip-call-2",
+            sip_call_id="sip-call-2",
+            from_uri="sip:+39124@host",
+            to_uri=f"sip:{workflow.workflow_uuid}@host",
+            caller_number="+39124",
+            callee_number=workflow.workflow_uuid,
+            agent_id=workflow.workflow_uuid,
+            codec="PCMA",
+            sample_rate=8000,
+            rtp_local_port=12002,
+            rtp_remote_addr=("10.0.0.2", 10002),
+            all_headers={
+                "x-first-name": "Alice",
+                "x-customer-id": "42",
+            },
+        )
+
+        with patch("api.services.sip.manager.db_client") as mock_db:
+            mock_db.create_workflow_run = AsyncMock(return_value=workflow_run)
+            mock_db.update_workflow_run = AsyncMock()
+
+            await manager._on_call_established(info)
+
+        initial_context = mock_db.create_workflow_run.await_args.kwargs["initial_context"]
+        assert initial_context["sip"]["x-first-name"] == "Alice"
+        assert initial_context["sip"]["first-name"] == "Alice"
+        assert initial_context["sip"]["x_first_name"] == "Alice"
+        assert initial_context["sip"]["first_name"] == "Alice"
+        assert render_template("{{sip.first_name}}", initial_context) == "Alice"
+        assert render_template("{{sip.customer_id}}", initial_context) == "42"
+        assert initial_context["sip_headers"]["x-first-name"] == "Alice"
 
     asyncio.run(run())
 

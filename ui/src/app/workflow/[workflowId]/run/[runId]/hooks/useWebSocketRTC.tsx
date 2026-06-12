@@ -21,6 +21,44 @@ interface UseWebSocketRTCProps {
     sipHeaders?: Array<{ key: string; value: string }>;
 }
 
+const INTERNAL_BACKEND_HOSTNAMES = new Set(["0.0.0.0", "127.0.0.1", "api", "localhost"]);
+
+function trimTrailingSlash(url: string) {
+    return url.endsWith("/") ? url.slice(0, -1) : url;
+}
+
+function normalizeBrowserBackendUrl(rawUrl: string) {
+    const trimmedUrl = trimTrailingSlash(rawUrl);
+
+    try {
+        const backendUrl = new URL(trimmedUrl);
+        const currentUrl = new URL(window.location.origin);
+
+        if (
+            INTERNAL_BACKEND_HOSTNAMES.has(backendUrl.hostname) &&
+            !INTERNAL_BACKEND_HOSTNAMES.has(currentUrl.hostname)
+        ) {
+            backendUrl.hostname = currentUrl.hostname;
+        }
+
+        return trimTrailingSlash(backendUrl.toString());
+    } catch {
+        return trimmedUrl;
+    }
+}
+
+function toWebSocketBaseUrl(rawUrl: string) {
+    const backendUrl = normalizeBrowserBackendUrl(rawUrl);
+
+    try {
+        const url = new URL(backendUrl);
+        url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+        return trimTrailingSlash(url.toString());
+    } catch {
+        return trimTrailingSlash(backendUrl.replace(/^http/, "ws"));
+    }
+}
+
 export const useWebSocketRTC = ({
     workflowId,
     workflowRunId,
@@ -91,15 +129,21 @@ export const useWebSocketRTC = ({
 
     // Get WebSocket URL from client configuration
     const getWebSocketUrl = useCallback(() => {
-        // Get base URL from client configuration
-        const baseUrl = client.getConfig().baseUrl || 'http://127.0.0.1:8000';
-        // Convert HTTP to WS protocol
-        const wsUrl = baseUrl.replace(/^http/, 'ws');
+        const clientBaseUrl = client.getConfig().baseUrl || '';
+        const runtimeBackendUrl = appConfig?.backendUrl && appConfig.backendUrl !== 'unknown'
+            ? appConfig.backendUrl
+            : '';
+        const baseUrl =
+            process.env.NEXT_PUBLIC_BACKEND_URL ||
+            (clientBaseUrl && clientBaseUrl !== window.location.origin ? clientBaseUrl : '') ||
+            runtimeBackendUrl ||
+            window.location.origin;
+        const wsUrl = toWebSocketBaseUrl(baseUrl);
         if (signalingMode === 'sip') {
             return `${wsUrl}/api/v1/ws/sip-test/${workflowId}?token=${accessToken}`;
         }
         return `${wsUrl}/api/v1/ws/signaling/${workflowId}/${workflowRunId}?token=${accessToken}`;
-    }, [workflowId, workflowRunId, accessToken, signalingMode]);
+    }, [workflowId, workflowRunId, accessToken, signalingMode, appConfig?.backendUrl]);
 
     const createPeerConnection = () => {
         // Build ICE servers list

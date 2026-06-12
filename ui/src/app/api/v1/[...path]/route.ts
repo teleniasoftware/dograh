@@ -66,16 +66,44 @@ async function getRequestBody(request: NextRequest) {
   return request.arrayBuffer();
 }
 
+function resolveRedirectUrl(location: string, baseUrl: string) {
+  return new URL(location, baseUrl).toString();
+}
+
 async function proxyRequest(request: NextRequest) {
   const backendUrl = buildBackendUrl(request);
+  const headers = createRequestHeaders(request);
+  const body = await getRequestBody(request);
 
   try {
-    const response = await fetch(backendUrl, {
+    let response = await fetch(backendUrl, {
       method: request.method,
-      headers: createRequestHeaders(request),
-      body: await getRequestBody(request),
+      headers,
+      body,
       cache: "no-store",
+      redirect: "manual",
     });
+
+    // FastAPI routers defined with a trailing slash commonly return 307/308
+    // redirects from the slashless variant. Replay the original request body
+    // once against the redirected URL so POST/PATCH/DELETE requests succeed.
+    if (
+      (response.status === 307 || response.status === 308) &&
+      response.headers.has("location")
+    ) {
+      const redirectedUrl = resolveRedirectUrl(
+        response.headers.get("location") as string,
+        backendUrl,
+      );
+
+      response = await fetch(redirectedUrl, {
+        method: request.method,
+        headers,
+        body,
+        cache: "no-store",
+        redirect: "manual",
+      });
+    }
 
     return new Response(request.method === "HEAD" ? null : response.body, {
       status: response.status,

@@ -22,9 +22,8 @@ from .message import (
     extract_user,
 )
 from .rtp_session import RTPPortAllocator, RTPSession
-from .sdp import CODEC_PARAMS
+from .sdp import CODEC_PARAMS, find_dtmf_pt, select_codec
 from .sdp import build as build_sdp
-from .sdp import find_dtmf_pt, select_codec
 from .sdp import parse as parse_sdp
 
 logger = logging.getLogger(__name__)
@@ -164,7 +163,11 @@ class SIPDialog:
         Args:
             status_code: SIP error code to send (e.g. 402, 486, 503).
         """
-        if self.state != DialogState.RINGING or not self._invite or not self._remote_addr:
+        if (
+            self.state != DialogState.RINGING
+            or not self._invite
+            or not self._remote_addr
+        ):
             logger.warning(
                 f"[{self.call_id}] reject({status_code}) called in invalid state "
                 f"{self.state.name}; ignoring"
@@ -222,9 +225,7 @@ class SIPDialog:
             # Re-INVITE in ESTABLISHED: session timer refresh (RFC 4028).
             # Accept as a no-op — same SDP, same codec, same RTP session.
             if self.state == DialogState.ESTABLISHED and self._se_value:
-                logger.info(
-                    f"[{self.call_id}] re-INVITE (session refresh) accepted"
-                )
+                logger.info(f"[{self.call_id}] re-INVITE (session refresh) accepted")
                 resp_200 = build_response(
                     msg,
                     200,
@@ -269,7 +270,12 @@ class SIPDialog:
         from_hdr = getattr(msg, "from_header", "") or ""
         to_hdr = getattr(msg, "to_header", "") or ""
         logger.info(
-            f"[{self.call_id}] INVITE from={from_hdr!r} to={to_hdr!r} addr={addr}"
+            "[%s] INVITE from=%r to=%r addr=%s headers=%s",
+            self.call_id,
+            from_hdr,
+            to_hdr,
+            addr,
+            dict(msg.headers),
         )
 
         # 100 Trying

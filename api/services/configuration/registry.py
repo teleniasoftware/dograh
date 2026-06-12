@@ -473,6 +473,21 @@ class FastwebLLMConfiguration(BaseLLMConfiguration):
         default="LATEST",
         description="FastWeb workflow release tag.",
     )
+    routing_tool_name: str | None = Field(
+        default=None,
+        description=(
+            "Optional Dograh tool function name to call when the FastWeb workflow "
+            "returns a routing output."
+        ),
+    )
+    routing_output_name: str = Field(
+        default="routing",
+        description="FastWeb output name that contains the routing value.",
+    )
+    routing_argument_name: str = Field(
+        default="routing",
+        description="Argument name used to pass the routing value to the tool.",
+    )
 
 
 OPENAI_REALTIME_MODELS = ["gpt-realtime-2"]

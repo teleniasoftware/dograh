@@ -557,6 +557,9 @@ def create_llm_service_from_provider(
     credentials: str | None = None,
     temperature: float | None = None,
     release_tag: str | None = None,
+    routing_tool_name: str | None = None,
+    routing_output_name: str | None = None,
+    routing_argument_name: str | None = None,
 ):
     """Create an LLM service from explicit provider/model/api_key.
 
@@ -646,7 +649,12 @@ def create_llm_service_from_provider(
             api_key=api_key,
             base_url=base_url,
             release_tag=release_tag or "LATEST",
-            settings=FastwebLLMSettings(model=model),
+            settings=FastwebLLMSettings(
+                model=model,
+                routing_tool_name=routing_tool_name,
+                routing_output_name=routing_output_name or "routing",
+                routing_argument_name=routing_argument_name or "routing",
+            ),
         )
     else:
         raise HTTPException(status_code=400, detail=f"Invalid LLM provider {provider}")
@@ -852,5 +860,14 @@ def create_llm_service(user_config):
     elif provider == ServiceProviders.FASTWEB.value:
         kwargs["base_url"] = user_config.llm.base_url
         kwargs["release_tag"] = getattr(user_config.llm, "release_tag", None)
+        kwargs["routing_tool_name"] = getattr(
+            user_config.llm, "routing_tool_name", None
+        )
+        kwargs["routing_output_name"] = getattr(
+            user_config.llm, "routing_output_name", None
+        )
+        kwargs["routing_argument_name"] = getattr(
+            user_config.llm, "routing_argument_name", None
+        )
 
     return create_llm_service_from_provider(provider, model, api_key, **kwargs)

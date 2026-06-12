@@ -124,6 +124,7 @@ services:
 
   api:
     image: ${REGISTRY:-dograhai}/dograh-api:latest
+    network_mode: host
     volumes:
       - shared-tmp:/tmp
     environment:
@@ -136,16 +137,16 @@ services:
       BACKEND_API_ENDPOINT: "${BACKEND_API_ENDPOINT:-http://localhost:8000}"
 
       # Database configuration (using containerized postgres)
-      DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/postgres"
+      DATABASE_URL: "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres"
 
       # Redis configuration (using containerized redis)
-      REDIS_URL: "redis://:redissecret@redis:6379"
+      REDIS_URL: "redis://:redissecret@localhost:6379"
 
       # Storage configuration - using local MinIO
       ENABLE_AWS_S3: "false"
 
       # MinIO
-      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ENDPOINT: "localhost:9000"
       # Full URL (with scheme) browsers use to reach MinIO. For remote
       # deployments behind HTTPS, set MINIO_PUBLIC_ENDPOINT in .env to
       # e.g. https://your-server.example.com (nginx proxies /voice-audio/).
@@ -187,10 +188,10 @@ services:
       POSTHOG_API_KEY: "${POSTHOG_API_KEY:-}"
       POSTHOG_HOST: "${POSTHOG_HOST:-}"
 
-    ports:
-      - "8000:8000"
-      - "${SIP_PORT:-5090}:${SIP_PORT:-5090}/udp"
-      - "${SIP_RTP_START_PORT:-10000}-${SIP_RTP_END_PORT:-10400}:${SIP_RTP_START_PORT:-10000}-${SIP_RTP_END_PORT:-10400}/udp"
+    # ports:
+    #   - "8000:8000"
+    #   - "${SIP_PORT:-5090}:${SIP_PORT:-5090}/udp"
+    #   - "${SIP_RTP_START_PORT:-10000}-${SIP_RTP_END_PORT:-10400}:${SIP_RTP_START_PORT:-10000}-${SIP_RTP_END_PORT:-10400}/udp"
     depends_on:
       postgres:
         condition: service_healthy
@@ -208,14 +209,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    networks:
-      - app-network
+    # networks:
+    #   - app-network
 
   ui:
     image: ${REGISTRY:-dograhai}/dograh-ui:latest
     environment:
       # Server-side URL (SSR, internal Docker network)
-      BACKEND_URL: "${BACKEND_URL:-http://api:8000}"
+      BACKEND_URL: "${BACKEND_URL:-http://host.docker.internal:8000}"
+      HOSTNAME: "0.0.0.0"
       NODE_ENV: "oss"
       AUTH_COOKIE_SECURE: "${AUTH_COOKIE_SECURE:-false}"
       # Flag to enable/ disable telemetry
@@ -225,6 +227,9 @@ services:
       POSTHOG_KEY: "${POSTHOG_KEY:-}"
       POSTHOG_HOST: "${POSTHOG_HOST:-}"
       POSTHOG_UI_HOST: "${POSTHOG_UI_HOST:-}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      - "api:host-gateway"
     ports:
       - "3010:3010"
     depends_on:
@@ -234,7 +239,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget --no-verbose --tries=1 --spider http://localhost:3010 || exit 1",
+          "wget --no-verbose --tries=1 --spider http://127.0.0.1:3010 || exit 1",
         ]
       interval: 30s
       timeout: 10s

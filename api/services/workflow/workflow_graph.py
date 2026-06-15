@@ -87,6 +87,8 @@ class Node:
         self.delayed_start = getattr(data, "delayed_start", False)
         self.delayed_start_duration = getattr(data, "delayed_start_duration", None)
         self.tool_uuids = getattr(data, "tool_uuids", None)
+        self.tool_execution_mode = getattr(data, "tool_execution_mode", None)
+        self.tool_wait_recording_id = getattr(data, "tool_wait_recording_id", None)
         self.document_uuids = getattr(data, "document_uuids", None)
         self.mcp_tool_filters = getattr(data, "mcp_tool_filters", None)
         self.pre_call_fetch_enabled = getattr(data, "pre_call_fetch_enabled", False)

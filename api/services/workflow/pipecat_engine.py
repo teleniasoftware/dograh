@@ -18,7 +18,7 @@ from pipecat.utils.enums import EndTaskReason
 
 from api.db import db_client
 from api.enums import ToolCategory
-from api.services.pipecat.audio_playback import play_audio
+from api.services.pipecat.audio_playback import play_audio, play_audio_data_loop
 from api.services.workflow.disposition_mapper import apply_disposition_mapping
 from api.services.workflow.workflow_graph import Node, WorkflowGraph
 
@@ -54,6 +54,13 @@ from api.services.workflow.tools.knowledge_base import (
     retrieve_from_knowledge_base,
 )
 from api.utils.template_renderer import render_template
+
+
+# Tool execution gating (tool_execution_mode == "post_speech"): how long to
+# wait for TTS to start speaking after a tool call arrives, and the safety cap
+# on how long we wait for the bot to finish speaking.
+TOOL_GATE_SPEECH_START_GRACE_SECS = 3.0
+TOOL_GATE_MAX_SPEECH_WAIT_SECS = 120.0
 
 
 class PipecatEngine:
@@ -115,6 +122,12 @@ class PipecatEngine:
 
         # Tracks whether the bot is currently speaking (for allow_interrupt logic)
         self._bot_is_speaking: bool = False
+
+        # True once should_mute_user has observed at least one frame, i.e. the
+        # voice pipeline's mute strategy is wired and bot speaking state is
+        # being tracked. Stays False in text chat, where post-speech tool
+        # gating and tool-wait recordings must no-op.
+        self._speech_state_tracking_active: bool = False
 
         # Custom tool manager (initialized in initialize())
         self._custom_tool_manager: Optional[CustomToolManager] = None
@@ -189,6 +202,13 @@ class PipecatEngine:
 
             # Helper that encapsulates custom tool management
             self._custom_tool_manager = CustomToolManager(self)
+
+            # Gate tool execution on the LLM so nodes with
+            # tool_execution_mode == "post_speech" defer tool calls until the
+            # bot has finished speaking. Realtime (speech-to-speech) services
+            # may not expose the gate, hence the hasattr guard.
+            if self.llm is not None and hasattr(self.llm, "set_function_call_gate"):
+                self.llm.set_function_call_gate(self._tool_execution_gate)
 
             # Open persistent MCP server sessions for this call (degrades on failure)
             await self._open_mcp_sessions()
@@ -394,7 +414,10 @@ class PipecatEngine:
                 )
 
         # Register the function with the LLM
-        self.llm.register_function("retrieve_from_knowledge_base", retrieve_kb_func)
+        self.llm.register_function(
+            "retrieve_from_knowledge_base",
+            self.wrap_tool_handler_with_wait_audio(retrieve_kb_func),
+        )
 
     async def _perform_variable_extraction_if_needed(
         self, node: Optional[Node], run_in_background: bool = True
@@ -793,6 +816,10 @@ class PipecatEngine:
         Returns:
             True if the user should be muted, False otherwise.
         """
+        # The mute strategy is only wired in voice pipelines; seeing a frame
+        # here means bot speaking state is being tracked reliably.
+        self._speech_state_tracking_active = True
+
         # Track bot speaking state from frames
         if isinstance(frame, BotStartedSpeakingFrame):
             self._bot_is_speaking = True
@@ -817,6 +844,131 @@ class PipecatEngine:
                 return True
 
         return False
+
+    async def _tool_execution_gate(self, params) -> None:
+        """Function call gate installed on the LLM (see initialize()).
+
+        Awaited by pipecat's LLMService inside each function call task, before
+        the tool handler and its timeout start. When the current node has
+        tool_execution_mode == "post_speech", holds the call until the bot has
+        finished speaking; otherwise (default "async") returns immediately,
+        preserving the current behavior of tools running concurrently with
+        speech.
+
+        Args:
+            params: pipecat FunctionCallGateParams (function_name,
+                tool_call_id, arguments).
+        """
+        node = self._current_node
+        mode = (getattr(node, "tool_execution_mode", None) if node else None) or "async"
+        if mode != "post_speech":
+            return
+
+        logger.debug(
+            f"Tool '{params.function_name}' gated until bot finishes speaking "
+            f"(node '{node.name}' tool_execution_mode=post_speech)"
+        )
+        await self._wait_for_bot_speech_complete()
+
+    async def _wait_for_bot_speech_complete(self) -> None:
+        """Wait until the bot has finished speaking the current response.
+
+        Tool calls usually arrive before TTS has produced the first audio
+        frame, so if the bot is not speaking yet we allow a grace period for
+        speech to start before concluding there is nothing to wait for.
+        Queued speech (transition speech, tool messages) pending playback is
+        also waited on. No-ops when speech state is not tracked (text chat)
+        or the call is being torn down.
+        """
+        if not self._speech_state_tracking_active or self._call_disposed:
+            return
+
+        clock = asyncio.get_event_loop().time
+
+        # Phase 1: give TTS a chance to start speaking.
+        deadline = clock() + TOOL_GATE_SPEECH_START_GRACE_SECS
+        while not self._bot_is_speaking and self._queued_speech_mute_state == "idle":
+            if clock() >= deadline or self._call_disposed:
+                return
+            await asyncio.sleep(0.05)
+
+        # Phase 2: wait for speech (and any queued speech) to finish.
+        deadline = clock() + TOOL_GATE_MAX_SPEECH_WAIT_SECS
+        while self._bot_is_speaking or self._queued_speech_mute_state != "idle":
+            if self._call_disposed:
+                return
+            if clock() >= deadline:
+                logger.warning(
+                    "Tool execution gate timed out waiting for bot speech to "
+                    f"finish after {TOOL_GATE_MAX_SPEECH_WAIT_SECS}s; executing tool"
+                )
+                return
+            await asyncio.sleep(0.05)
+
+    def wrap_tool_handler_with_wait_audio(self, handler):
+        """Wrap a tool handler to loop the node's tool-wait recording while it runs.
+
+        When the current node has a `tool_wait_recording_id`, the recording is
+        played in a paced loop for the duration of the tool execution and
+        stopped as soon as the handler returns. Playback only starts if the
+        tool takes longer than the loop's start delay, so fast tools stay
+        silent. No-ops in text chat or when the recording cannot be fetched.
+
+        Args:
+            handler: The original async tool handler taking FunctionCallParams.
+
+        Returns:
+            The wrapped handler.
+        """
+
+        async def wrapped(function_call_params: FunctionCallParams) -> None:
+            node = self._current_node
+            recording_id = getattr(node, "tool_wait_recording_id", None) if node else None
+            if (
+                not recording_id
+                or not self._speech_state_tracking_active
+                or not self._fetch_recording_audio
+                or self._transport_output is None
+            ):
+                await handler(function_call_params)
+                return
+
+            stop_event = asyncio.Event()
+
+            async def _play_wait_audio() -> None:
+                try:
+                    result = await self._fetch_recording_audio(
+                        recording_pk=int(recording_id)
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to fetch tool-wait recording {recording_id}: {e}"
+                    )
+                    return
+                if not result or stop_event.is_set():
+                    return
+                await play_audio_data_loop(
+                    audio_data=result.audio,
+                    stop_event=stop_event,
+                    sample_rate=self._audio_config.pipeline_sample_rate
+                    if self._audio_config
+                    else 16000,
+                    queue_frame=self._transport_output.queue_frame,
+                )
+
+            playback_task = asyncio.create_task(
+                _play_wait_audio(), name="tool-wait-recording"
+            )
+            try:
+                await handler(function_call_params)
+            finally:
+                stop_event.set()
+                try:
+                    await playback_task
+                except Exception as e:
+                    logger.warning(f"Tool-wait recording playback failed: {e}")
+
+        return wrapped
 
     def create_user_idle_handler(self):
         """

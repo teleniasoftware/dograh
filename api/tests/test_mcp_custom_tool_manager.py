@@ -35,6 +35,8 @@ async def test_get_tool_schemas_and_handler_for_mcp(monkeypatch):
 
         engine = MagicMock()
         engine._mcp_sessions = {tool.tool_uuid: session}
+        # Pass-through: tool-wait audio wrapping is covered by engine tests
+        engine.wrap_tool_handler_with_wait_audio = lambda handler: handler
         registered = {}
         reg_kwargs = {}
 

@@ -1091,6 +1091,8 @@ class TestCustomToolManagerUnit:
             mock_engine
         )
         mock_engine.llm = mock_llm
+        # Pass-through: tool-wait audio wrapping is covered by engine tests
+        mock_engine.wrap_tool_handler_with_wait_audio = lambda handler: handler
 
         manager = CustomToolManager(mock_engine)
 

@@ -171,6 +171,38 @@ class _ToolDocumentRefsMixin(BaseModel):
         default=None,
         spec_exclude=True,
     )
+    tool_execution_mode: Optional[str] = spec_field(
+        default=None,
+        ui_type=PropertyType.options,
+        display_name="Tool Execution Mode",
+        description=(
+            "When tool calls execute. 'Async' (default) runs tools as soon as "
+            "the LLM requests them, concurrently with the agent's speech. "
+            "'After Speech' defers execution until the agent has finished "
+            "speaking the response that requested the tool."
+        ),
+        options=[
+            PropertyOption(value="async", label="Async (during speech)"),
+            PropertyOption(value="post_speech", label="After Speech"),
+        ],
+        spec_default="async",
+    )
+    tool_wait_recording_id: Optional[str] = spec_field(
+        default=None,
+        ui_type=PropertyType.recording_ref,
+        display_name="Tool Wait Recording",
+        description=(
+            "Optional pre-recorded audio looped while a tool is executing. "
+            "Playback starts only if the tool takes more than a moment and "
+            "stops as soon as the result is ready. Recommended together with "
+            "the 'After Speech' execution mode so it never overlaps the "
+            "agent's speech."
+        ),
+        llm_hint=(
+            "Value is the `recording_id` string. Use the `list_recordings` "
+            "MCP tool to discover available recordings."
+        ),
+    )
 
 
 @node_spec(
@@ -211,6 +243,8 @@ class _ToolDocumentRefsMixin(BaseModel):
         "extraction_prompt",
         "extraction_variables",
         "tool_uuids",
+        "tool_execution_mode",
+        "tool_wait_recording_id",
         "document_uuids",
         "pre_call_fetch_enabled",
         "pre_call_fetch_url",
@@ -386,6 +420,8 @@ class StartCallNodeData(
         "extraction_prompt",
         "extraction_variables",
         "tool_uuids",
+        "tool_execution_mode",
+        "tool_wait_recording_id",
         "document_uuids",
     ),
     field_overrides={

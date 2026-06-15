@@ -252,7 +252,9 @@ class CustomToolManager:
                     for fs in mcp_schemas:
                         self._engine.llm.register_function(
                             fs.name,
-                            self._create_mcp_handler(session, fs.name),
+                            self._engine.wrap_tool_handler_with_wait_audio(
+                                self._create_mcp_handler(session, fs.name)
+                            ),
                             timeout_secs=session.call_timeout_secs,
                         )
                     logger.debug(
@@ -264,8 +266,15 @@ class CustomToolManager:
                 schema = tool_to_function_schema(tool)
                 function_name = schema["function"]["name"]
 
-                # Create and register the handler
+                # Create and register the handler. End-call and transfer
+                # tools manage their own audio (goodbye message, hold music),
+                # so the tool-wait recording only wraps the other categories.
                 handler, timeout_secs = self._create_handler(tool, function_name)
+                if tool.category not in (
+                    ToolCategory.END_CALL.value,
+                    ToolCategory.TRANSFER_CALL.value,
+                ):
+                    handler = self._engine.wrap_tool_handler_with_wait_audio(handler)
                 self._engine.llm.register_function(
                     function_name,
                     handler,
@@ -327,7 +336,10 @@ class CustomToolManager:
             except Exception as e:
                 await function_call_params.result_callback({"error": str(e)})
 
-        self._engine.llm.register_function("safe_calculator", calculate_func)
+        self._engine.llm.register_function(
+            "safe_calculator",
+            self._engine.wrap_tool_handler_with_wait_audio(calculate_func),
+        )
 
     def _create_http_tool_handler(self, tool: Any, function_name: str):
         """Create a handler function for an HTTP API tool.

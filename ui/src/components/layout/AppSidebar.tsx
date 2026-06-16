@@ -248,8 +248,8 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r">
-      <SidebarHeader className="border-b px-2 py-3 notranslate" translate="no">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+      <SidebarHeader className="border-b border-sidebar-border px-2 py-3 notranslate" translate="no">
         <div className="flex items-center justify-between">
           <div className={cn("flex items-center gap-2", isCollapsed && "hidden")}>
             <Link
@@ -355,7 +355,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter
-        className={cn("border-t p-4 notranslate", isCollapsed && "p-2")}
+        className={cn("border-t border-sidebar-border p-4 notranslate", isCollapsed && "p-2")}
         translate="no"
       >
         <div className="space-y-2">

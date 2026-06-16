@@ -1,3 +1,4 @@
+import api.services.sip.sdp as sdp_module
 from api.services.sip.message import build_response, extract_user, parse_message
 from api.services.sip.rtp_session import RTPPortAllocator
 from api.services.sip.sdp import build, find_dtmf_pt, parse, select_codec
@@ -46,6 +47,79 @@ def test_sdp_selects_g711_and_dtmf_payload():
     assert payload_type == 8
     assert codec == "PCMA"
     assert find_dtmf_pt(sdp) == 101
+
+
+def test_sdp_prefers_opus_when_available(monkeypatch):
+    monkeypatch.setattr(
+        sdp_module,
+        "_CODEC_PREFERENCE",
+        ["OPUS", "G722", "PCMA", "PCMU"],
+    )
+    payload = (
+        b"v=0\r\n"
+        b"o=- 1 1 IN IP4 10.0.0.1\r\n"
+        b"c=IN IP4 10.0.0.1\r\n"
+        b"t=0 0\r\n"
+        b"m=audio 10000 RTP/AVP 0 8 9 111 101\r\n"
+        b"a=rtpmap:0 PCMU/8000\r\n"
+        b"a=rtpmap:8 PCMA/8000\r\n"
+        b"a=rtpmap:9 G722/8000\r\n"
+        b"a=rtpmap:111 opus/48000/2\r\n"
+        b"a=rtpmap:101 telephone-event/8000\r\n"
+    )
+
+    sdp = parse(payload)
+    payload_type, codec = select_codec(sdp)
+
+    assert payload_type == 111
+    assert codec == "OPUS"
+
+
+def test_sdp_selects_static_g722_payload_when_available(monkeypatch):
+    monkeypatch.setattr(sdp_module, "_CODEC_PREFERENCE", ["G722", "PCMA", "PCMU"])
+    payload = (
+        b"v=0\r\n"
+        b"o=- 1 1 IN IP4 10.0.0.1\r\n"
+        b"c=IN IP4 10.0.0.1\r\n"
+        b"t=0 0\r\n"
+        b"m=audio 10000 RTP/AVP 0 8 9 101\r\n"
+        b"a=rtpmap:0 PCMU/8000\r\n"
+        b"a=rtpmap:8 PCMA/8000\r\n"
+        b"a=rtpmap:101 telephone-event/8000\r\n"
+    )
+
+    sdp = parse(payload)
+    payload_type, codec = select_codec(sdp)
+
+    assert payload_type == 9
+    assert codec == "G722"
+
+
+def test_sdp_builds_opus_answer():
+    answer = build(
+        local_ip="127.0.0.1",
+        rtp_port=12000,
+        codec_pt=111,
+        codec_name="OPUS",
+        session_id="42",
+    )
+
+    assert b"m=audio 12000 RTP/AVP 111 101" in answer
+    assert b"a=rtpmap:111 opus/48000/2" in answer
+    assert b"a=fmtp:111 maxplaybackrate=16000;" in answer
+
+
+def test_sdp_builds_g722_answer():
+    answer = build(
+        local_ip="127.0.0.1",
+        rtp_port=12000,
+        codec_pt=9,
+        codec_name="G722",
+        session_id="42",
+    )
+
+    assert b"m=audio 12000 RTP/AVP 9 101" in answer
+    assert b"a=rtpmap:9 G722/8000" in answer
 
 
 def test_sdp_builds_answer_with_agent_rtp_port():

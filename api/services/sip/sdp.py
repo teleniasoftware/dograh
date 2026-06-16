@@ -1,7 +1,8 @@
 """
 SDP parser and builder for audio-only SIP calls.
 
-Supported codecs (in preference order):
+Supported codecs (in preference order when the runtime dependency is present):
+  OPUS  (dynamic PT, 16 kHz mono audio, RTP clock 48000 Hz per RFC 7587)
   G722  (PT=9,  16 kHz wideband, RTP clock 8000 Hz per RFC 3551)
   PCMA  (PT=8,  G.711 alaw,  8 kHz)
   PCMU  (PT=0,  G.711 ulaw,  8 kHz)
@@ -32,12 +33,12 @@ _pref: list[str] = []
 try:
     import opuslib as _opuslib_pkg  # noqa: F401
     _pref.append("OPUS")
-except ImportError:
+except Exception:
     pass
 try:
     import G722 as _g722_pkg  # noqa: F401  (module name is capital G722)
     _pref.append("G722")
-except ImportError:
+except Exception:
     pass
 _pref += ["PCMA", "PCMU"]
 _CODEC_PREFERENCE: list[str] = _pref
@@ -111,7 +112,7 @@ def select_codec(remote: SDPSession) -> tuple[int, str]:
     """
     Choose the best codec from the remote SDP.
 
-    Preference order: G722 > PCMA > PCMU.
+    Preference order: OPUS > G722 > PCMA > PCMU.
     Returns (payload_type, codec_name).
     """
     if not remote.audio:

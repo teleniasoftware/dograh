@@ -115,7 +115,10 @@ FROM python:3.13-slim AS runner
 
 WORKDIR /app
 
-RUN groupadd --system dograh \
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libopus0 \
+ && rm -rf /var/lib/apt/lists/* \
+ && groupadd --system dograh \
  && useradd --system --gid dograh --no-log-init --home-dir /app --shell /usr/sbin/nologin dograh \
  && chown dograh:dograh /app
 

@@ -27,17 +27,17 @@ except ImportError:
     logger.warning("audioop not available; using fallback G.711 tables")
 
 try:
-    import G722 as _G722Lib  # pip install g722  (module name is capital G722)
+    import G722 as _G722Lib  # pip install G722  (module name is capital G722)
     _HAS_G722 = True
-except ImportError:
+except Exception:
     _G722Lib = None  # type: ignore
     _HAS_G722 = False
     logger.warning("G722 package not available; G722 codec not supported")
 
 try:
-    import opuslib as _opuslib  # pip install opuslib  (requires libopus-dev)
+    import opuslib as _opuslib  # pip install opuslib  (requires libopus)
     _HAS_OPUS = True
-except ImportError:
+except Exception:
     _opuslib = None  # type: ignore
     _HAS_OPUS = False
     logger.warning("opuslib not available; Opus codec not supported")
@@ -270,8 +270,8 @@ class RTPSession:
         self._g722_decoder = None
         if self._codec == "G722":
             if _HAS_G722:
-                self._g722_encoder = _G722Lib.G722(16000, 64000)
-                self._g722_decoder = _G722Lib.G722(16000, 64000)
+                self._g722_encoder = _G722Lib.G722(16000, 64000, use_numpy=False)
+                self._g722_decoder = _G722Lib.G722(16000, 64000, use_numpy=False)
                 logger.info("G722 stateful encoder/decoder initialized")
             else:
                 logger.error("G722 codec requested but G722 package not installed")
@@ -284,7 +284,11 @@ class RTPSession:
         self._opus_frame_size = SAMPLES_16K  # 320 samples = 20 ms @ 16 kHz
         if self._codec == "OPUS":
             if _HAS_OPUS:
-                self._opus_encoder = _opuslib.Encoder(16000, 1, _opuslib.APPLICATION_VOIP)
+                self._opus_encoder = _opuslib.Encoder(
+                    16000,
+                    1,
+                    _opuslib.APPLICATION_VOIP,
+                )
                 self._opus_decoder = _opuslib.Decoder(16000, 1)
                 logger.info("Opus stateful encoder/decoder initialized @ 16 kHz")
             else:

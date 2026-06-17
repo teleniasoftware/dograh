@@ -3,9 +3,9 @@ import asyncio
 import pytest
 from loguru import logger
 from pipecat.frames.frames import (
-    EndTaskFrame,
+    EndWorkerFrame,
     Frame,
-    InterruptionTaskFrame,
+    InterruptionWorkerFrame,
     LLMRunFrame,
 )
 from pipecat.pipeline.pipeline import Pipeline
@@ -60,15 +60,15 @@ async def test_interruption_with_blocked_end_frame():
     async def queue_frame():
         await task.queue_frames([LLMRunFrame()])
 
-        # Send EndTaskFrame to simulate EndFrame
+        # Send EndWorkerFrame to simulate EndFrame
         await asyncio.sleep(0.1)
-        await transport.queue_frame(EndTaskFrame(), direction=FrameDirection.UPSTREAM)
+        await transport.queue_frame(EndWorkerFrame(), direction=FrameDirection.UPSTREAM)
 
         # Simulate an Interruption, which can happen if the user
         # has started to speak
         await asyncio.sleep(0.1)
         await transport.queue_frame(
-            InterruptionTaskFrame(), direction=FrameDirection.UPSTREAM
+            InterruptionWorkerFrame(), direction=FrameDirection.UPSTREAM
         )
 
     # Create tasks explicitly for better control

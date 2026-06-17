@@ -980,7 +980,7 @@ class PipecatEngine:
     def create_max_duration_callback(self):
         """
         This callback is called when the call duration exceeds the max duration.
-        We use this to send the EndTaskFrame.
+        We use this to send the EndWorkerFrame.
         """
         return engine_callbacks.create_max_duration_callback(self)
 

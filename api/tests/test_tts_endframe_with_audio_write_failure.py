@@ -277,7 +277,7 @@ class TestTTSPauseWithAudioWriteFailure:
 
         assert test_timed_out is False, (
             "Test timed out - pipeline hung due to TTS being paused. "
-            "BotStoppedSpeakingFrame was not sent before CancelTaskFrame."
+            "BotStoppedSpeakingFrame was not sent before CancelWorkerFrame."
         )
 
     @pytest.mark.asyncio
@@ -395,5 +395,5 @@ class TestTTSPauseWithAudioWriteFailure:
 
         assert test_timed_out is False, (
             "Test timed out - pipeline hung due to TTS being paused. "
-            "BotStoppedSpeakingFrame was not sent before CancelTaskFrame."
+            "BotStoppedSpeakingFrame was not sent before CancelWorkerFrame."
         )

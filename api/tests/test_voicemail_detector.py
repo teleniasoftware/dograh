@@ -10,7 +10,7 @@ import asyncio
 import pytest
 from pipecat.extensions.voicemail.voicemail_detector import VoicemailDetector
 from pipecat.frames.frames import (
-    EndTaskFrame,
+    EndWorkerFrame,
     Frame,
     TranscriptionFrame,
     UserStartedSpeakingFrame,
@@ -199,7 +199,7 @@ class TestVoicemailDetectorWithUserAggregator:
 
             await asyncio.sleep(0.05)
             await injector.inject_frame(
-                EndTaskFrame(), direction=FrameDirection.UPSTREAM
+                EndWorkerFrame(), direction=FrameDirection.UPSTREAM
             )
 
         await asyncio.gather(run_pipeline(), inject_frames())

@@ -19,7 +19,7 @@ from pipecat.frames.frames import (
     BotStoppedSpeakingFrame,
     CancelFrame,
     EndFrame,
-    EndTaskFrame,
+    EndWorkerFrame,
     Frame,
     InputAudioRawFrame,
     InterruptionFrame,
@@ -222,7 +222,7 @@ class SIPInputTransport(BaseInputTransport):
         except Exception as e:
             logger.error(f"SIP input receive loop error: {e}", exc_info=True)
             await self.push_frame(
-                EndTaskFrame(reason=f"sip receive loop exception: {e}")
+                EndWorkerFrame(reason=f"sip receive loop exception: {e}")
             )
 
 
